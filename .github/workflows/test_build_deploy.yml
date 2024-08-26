@@ -1,0 +1,38 @@
+name: Deploy to Google Run
+run-name: Deploy to Google Run
+on: [push]
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm run test
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+      - name: Install dependencies
+        run: npm install
+      - name: Save service account key file environment variable to file
+        run: echo "${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY_FILE }}" | base64 -d >> key-file.json
+      - name: Authenticate service account
+        run: gcloud auth activate-service-account --key-file key-file.json
+      - name: Remove key-file.json
+        run: rm key-file.json
+      - name: Build
+        run: npm run build:cloud
+      - name: Deploy
+        run: npm run deploy

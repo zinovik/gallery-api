@@ -1,0 +1,52 @@
+{
+    "name": "gallery-api",
+    "version": "0.1.0",
+    "description": "gallery api",
+    "main": "main.js",
+    "engines": {
+        "node": ">=18.0",
+        "npm": ">=8.0"
+    },
+    "scripts": {
+        "test": "exit 0 && jest --config jestconfig.json --coverage",
+        "build": "rm -rf dist && tsc",
+        "start": "node dist/main.js",
+        "dev": "npm run build && DEVELOPMENT=true GOOGLE_APPLICATION_CREDENTIALS=key-file.json npm run start",
+        "build:cloud": "gcloud builds submit --tag europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api --region=europe-west1 --project zinovik-project",
+        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-project --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest"
+    },
+    "dependencies": {
+        "@google-cloud/storage": "7.12.1",
+        "@nestjs/common": "10.4.1",
+        "@nestjs/core": "10.4.1",
+        "@nestjs/jwt": "10.2.0",
+        "@nestjs/platform-express": "10.4.1",
+        "axios": "1.7.5",
+        "cookie-parser": "1.4.6",
+        "google-auth-library": "9.14.0",
+        "reflect-metadata": "0.2.2",
+        "rxjs": "7.8.1"
+    },
+    "devDependencies": {
+        "@nestjs/testing": "10.4.1",
+        "@types/body-parser": "1.19.5",
+        "@types/cookie-parser": "1.4.7",
+        "@types/express": "4.17.21",
+        "@types/jest": "29.5.12",
+        "@types/node": "22.5.0",
+        "jest": "29.7.0",
+        "ts-jest": "29.2.5",
+        "typemoq": "2.1.0",
+        "typescript": "5.5.4"
+    },
+    "author": "Max Zinovik",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/zinovik/gallery-api.git"
+    },
+    "bugs": {
+        "url": "https://github.com/zinovik/gallery-api/issues"
+    },
+    "homepage": "https://github.com/zinovik/gallery-api#readme"
+}
