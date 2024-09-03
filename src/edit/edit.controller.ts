@@ -1,5 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { GalleryGuard } from './edit.guard';
+import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import { GoogleAuth } from 'google-auth-library';
 
@@ -64,7 +64,7 @@ interface UpdatedFile {
 }
 
 @Controller('edit')
-@UseGuards(new GalleryGuard())
+@UseGuards(new EditGuard())
 export class EditController {
     constructor(private readonly storageService: StorageService) {}
 

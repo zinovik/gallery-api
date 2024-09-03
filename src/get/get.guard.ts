@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 
 @Injectable()
-export class GalleryGuard implements CanActivate {
+export class GetGuard implements CanActivate {
     constructor() {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
