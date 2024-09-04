@@ -2,66 +2,21 @@ import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import { GoogleAuth } from 'google-auth-library';
-
-const BUCKET_NAME = 'zinovik-gallery';
-const FILES_FILE_NAME = 'files.json';
-const ALBUMS_FILE_NAME = 'albums.json';
-const MEDIA_URLS_UPDATER =
-    'https://europe-central2-zinovik-project.cloudfunctions.net/media-urls-updater';
-
-interface AlbumInterface {
-    path: string;
-    title: string;
-    text?: string | string[];
-    isSorted?: true;
-}
-
-interface FileInterface {
-    path: string;
-    filename: string;
-    isTitle?: true;
-    isNoThumbnail?: true;
-    description: string;
-    text?: string | string[];
-    isVertical?: true;
-}
-
-interface RemovedAlbum {
-    path: string;
-}
-
-interface RemovedFile {
-    filename: string;
-}
-
-interface AddedAlbum {
-    pathPart: string;
-    title: string;
-    text: string | string[];
-    relatedPath: string;
-    relation: 'after' | 'before' | 'in';
-}
-
-interface AddedFile {
-    path: string;
-    filename: string;
-    description: string;
-    text: string | string[];
-}
-
-interface UpdatedAlbum {
-    path: string;
-    newPath?: string;
-    title?: string;
-    text?: string | string[];
-}
-
-interface UpdatedFile {
-    filename: string;
-    path?: string;
-    description?: string;
-    text?: string | string[];
-}
+import {
+    ALBUMS_FILE_NAME,
+    BUCKET_NAME,
+    FILES_FILE_NAME,
+    MEDIA_URLS_UPDATER,
+} from '../config';
+import {
+    AddedAlbum,
+    AlbumInterface,
+    FileInterface,
+    RemovedAlbum,
+    RemovedFile,
+    UpdatedAlbum,
+    UpdatedFile,
+} from '../types';
 
 @Controller('edit')
 @UseGuards(new EditGuard())
@@ -91,7 +46,6 @@ export class EditController {
             };
             add?: {
                 albums?: AddedAlbum[];
-                files?: AddedFile[];
             };
             update?: {
                 albums?: UpdatedAlbum[];
@@ -106,7 +60,6 @@ export class EditController {
         const shouldRemoveFiles =
             body.remove?.files && body.remove.files.length > 0;
         const shouldAddAlbums = body.add?.albums && body.add.albums.length > 0;
-        const shouldAddFiles = body.add?.files && body.add.files.length > 0;
         const shouldUpdateAlbums =
             body.update?.albums && body.update.albums.length > 0;
         const shouldUpdateFiles =
@@ -117,11 +70,10 @@ export class EditController {
             shouldAddAlbums ||
             shouldUpdateAlbums ||
             shouldRemoveFiles ||
-            shouldAddFiles ||
             shouldUpdateFiles
                 ? [this.storageService.getFile(BUCKET_NAME, ALBUMS_FILE_NAME)]
                 : []),
-            ...(shouldRemoveFiles || shouldAddFiles || shouldUpdateFiles
+            ...(shouldRemoveFiles || shouldUpdateFiles
                 ? [this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME)]
                 : []),
         ])) as [AlbumInterface[], FileInterface[]];
@@ -149,16 +101,13 @@ export class EditController {
             );
         }
 
-        if (shouldRemoveFiles || shouldAddFiles || shouldUpdateFiles) {
+        if (shouldRemoveFiles || shouldUpdateFiles) {
             const filesWithoutRemoved = shouldRemoveFiles
                 ? this.removeFiles(filesOld, body.remove.files)
                 : filesOld;
-            const filesWithAdded = shouldAddFiles
-                ? this.addFiles(filesWithoutRemoved, body.add.files)
-                : filesWithoutRemoved;
             const filesUpdated = shouldUpdateFiles
-                ? this.updateFiles(filesWithAdded, body.update.files)
-                : filesWithAdded;
+                ? this.updateFiles(filesWithoutRemoved, body.update.files)
+                : filesWithoutRemoved;
             const filesSorted = this.sortFiles(
                 filesUpdated,
                 mutableAlbumsUpdated
@@ -307,19 +256,6 @@ export class EditController {
                     (removedFile) => removedFile.filename === file.filename
                 )
         );
-    }
-
-    private addFiles(
-        files: FileInterface[],
-        addedFiles: AddedFile[]
-    ): FileInterface[] {
-        return [
-            ...files,
-            ...addedFiles.map((addedFile) => ({
-                ...addedFile,
-                text: addedFile.text || undefined,
-            })),
-        ];
     }
 
     private updateFiles(
