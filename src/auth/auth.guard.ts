@@ -17,12 +17,12 @@ export class AuthGuard implements CanActivate {
             IS_PUBLIC_KEY,
             [context.getHandler(), context.getClass()]
         );
-        if (isPublic) return true;
 
         const request = context.switchToHttp().getRequest();
         const token = request.cookies['access_token'];
 
         if (!token) {
+            if (isPublic) return true;
             throw new UnauthorizedException();
         }
 
@@ -35,10 +35,14 @@ export class AuthGuard implements CanActivate {
 
             const csrf = this.extractCSRFTokenFromHeader(request);
 
-            if (csrf !== payload.csrf) throw new UnauthorizedException();
+            if (csrf !== payload.csrf) {
+                if (isPublic) return true;
+                throw new UnauthorizedException();
+            }
 
             request['user'] = payload;
         } catch {
+            if (isPublic) return true;
             throw new UnauthorizedException();
         }
 

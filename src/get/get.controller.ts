@@ -15,16 +15,23 @@ export class GetController {
 
     @Public()
     @Get('files')
-    async files(@Req() _request: Request): Promise<FileInterface[]> {
+    async files(
+        @Req() request: Request & { user?: { email: string } }
+    ): Promise<FileInterface[]> {
         const [files, sourcesConfig] = (await Promise.all([
             this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME),
             this.storageService.getFile(BUCKET_NAME, SOURCES_CONFIG_FILE_NAME),
         ])) as [FileInterface[], Record<string, string>];
 
-        const filesWithUrls = files.map((file) => ({
-            ...file,
-            url: sourcesConfig[file.filename] || file.filename,
-        }));
+        const user = request.user?.email;
+        console.log(user);
+
+        const filesWithUrls = files
+            .filter((file) => file) // TBA
+            .map((file) => ({
+                ...file,
+                url: sourcesConfig[file.filename] || file.filename,
+            }));
 
         return filesWithUrls as FileInterface[];
     }
