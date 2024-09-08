@@ -1,11 +1,11 @@
-export interface AlbumInterface {
+export interface AlbumModel {
     path: string;
     title: string;
     text?: string | string[];
     isSorted?: true;
 }
 
-export interface FileInterface {
+export interface FileModel {
     path: string;
     filename: string;
     isTitle?: true;
@@ -13,6 +13,24 @@ export interface FileInterface {
     description: string;
     text?: string | string[];
     isVertical?: true;
+}
+
+export interface AlbumDTO {
+    path: string;
+    title: string;
+    text?: string | string[];
+    isSorted?: true;
+}
+
+export interface FileDTO {
+    path: string;
+    filename: string;
+    isTitle?: true;
+    isNoThumbnail?: true;
+    description: string;
+    text?: string | string[];
+    isVertical?: true;
+    url: string;
 }
 
 export interface RemovedAlbum {

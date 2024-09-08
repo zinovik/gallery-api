@@ -10,8 +10,8 @@ import {
 } from '../config';
 import {
     AddedAlbum,
-    AlbumInterface,
-    FileInterface,
+    AlbumModel,
+    FileModel,
     RemovedAlbum,
     RemovedFile,
     UpdatedAlbum,
@@ -76,7 +76,7 @@ export class EditController {
             ...(shouldRemoveFiles || shouldUpdateFiles
                 ? [this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME)]
                 : []),
-        ])) as [AlbumInterface[], FileInterface[]];
+        ])) as [AlbumModel[], FileModel[]];
 
         let mutableAlbumsUpdated = albumsOld;
 
@@ -122,9 +122,9 @@ export class EditController {
     }
 
     private removeAlbums(
-        albums: AlbumInterface[],
+        albums: AlbumModel[],
         removedAlbums: RemovedAlbum[]
-    ): AlbumInterface[] {
+    ): AlbumModel[] {
         return albums.filter(
             (album) =>
                 !removedAlbums.some(
@@ -134,9 +134,9 @@ export class EditController {
     }
 
     private addAlbums(
-        albums: AlbumInterface[],
+        albums: AlbumModel[],
         addedAlbums: AddedAlbum[]
-    ): AlbumInterface[] {
+    ): AlbumModel[] {
         const albumsWithAdded = [...albums];
 
         addedAlbums.forEach((addedAlbum) => {
@@ -169,9 +169,9 @@ export class EditController {
     }
 
     private updateAlbums(
-        albums: AlbumInterface[],
+        albums: AlbumModel[],
         updateAlbums: UpdatedAlbum[]
-    ): AlbumInterface[] {
+    ): AlbumModel[] {
         return albums.map((album) => {
             const updatedAlbum = updateAlbums.find(
                 (updatedAlbum) => updatedAlbum.path === album.path
@@ -194,7 +194,7 @@ export class EditController {
         });
     }
 
-    private sortAlbums(albums: AlbumInterface[]): AlbumInterface[] {
+    private sortAlbums(albums: AlbumModel[]): AlbumModel[] {
         const sortedAlbums = albums
             .filter((album) => album.isSorted)
             .map((album) => album.path);
@@ -247,9 +247,9 @@ export class EditController {
     }
 
     private removeFiles(
-        files: FileInterface[],
+        files: FileModel[],
         removedFiles: RemovedFile[]
-    ): FileInterface[] {
+    ): FileModel[] {
         return files.filter(
             (file) =>
                 !removedFiles.some(
@@ -259,9 +259,9 @@ export class EditController {
     }
 
     private updateFiles(
-        files: FileInterface[],
+        files: FileModel[],
         updatedFiles: UpdatedFile[]
-    ): FileInterface[] {
+    ): FileModel[] {
         return files.map((file) => {
             const updatedFile = updatedFiles.find(
                 (updatedFile) => updatedFile.filename === file.filename
@@ -282,10 +282,7 @@ export class EditController {
         });
     }
 
-    private sortFiles(
-        files: FileInterface[],
-        albums: AlbumInterface[]
-    ): FileInterface[] {
+    private sortFiles(files: FileModel[], albums: AlbumModel[]): FileModel[] {
         const albumPaths = albums.map((album) => album.path);
 
         return [...files].sort((f1, f2) =>
