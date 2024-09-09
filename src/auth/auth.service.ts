@@ -59,6 +59,7 @@ export class AuthService {
                 {
                     email: user.email,
                     isEditAccess: user.isEditAccess,
+                    accesses: user.accesses,
                     csrf,
                 },
                 { expiresIn: `24h` }

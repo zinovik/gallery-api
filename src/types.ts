@@ -3,6 +3,7 @@ export interface AlbumModel {
     title: string;
     text?: string | string[];
     isSorted?: true;
+    accesses?: string[];
 }
 
 export interface FileModel {
@@ -13,6 +14,7 @@ export interface FileModel {
     description: string;
     text?: string | string[];
     isVertical?: true;
+    accesses?: string[];
 }
 
 export interface AlbumDTO {
