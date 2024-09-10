@@ -7,6 +7,7 @@ import {
     BUCKET_NAME,
     FILES_FILE_NAME,
     MEDIA_URLS_UPDATER,
+    SOURCES_CONFIG_FILE_NAME,
 } from '../config';
 import {
     AddedAlbum,
@@ -36,8 +37,93 @@ export class EditController {
         return data;
     }
 
+    @Post('add-new-files')
+    async addNewFiles() {
+        const albums: AlbumModel[] = await this.storageService.getFile(BUCKET_NAME, ALBUMS_FILE_NAME) as AlbumModel[];
+        const files: FileModel[] = await this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME) as FileModel[];
+        const sources = await this.storageService.getFile(BUCKET_NAME, SOURCES_CONFIG_FILE_NAME)
+
+        // const newSources = sources.filter(
+        //     (source) => !files.some((file) => file.filename === source.filename)
+        // );
+
+        // console.log(
+        //     'NEW FILENAMES:',
+        //     newSources.map((source) => source.filename).join(', ')
+        // );
+
+        // if (newSources.length > 0) {
+        //     files.push(
+        //         ...newSources.map((source) => ({
+        //             path: `${source.folder}/unsorted`,
+        //             filename: source.filename,
+        //             description: '',
+        //         }))
+        //     );
+        // }
+
+        // const newPaths = [
+        //     ...new Set(
+        //         files
+        //             .filter(
+        //                 (file) =>
+        //                     !albums.some((album) => album.path === file.path)
+        //             )
+        //             .map((file) => file.path)
+        //     ),
+        // ];
+
+        // console.log('NEW PATHS:', newPaths.join(', '));
+
+        // if (newPaths.length > 0) {
+        //     albums.push(
+        //         ...newPaths.map((path) => {
+        //             const [_, ...parts] = path.split('/');
+
+        //             return {
+        //                 title: parts.join('/'),
+        //                 path,
+        //             };
+        //         })
+        //     );
+        // }
+
+        // await Promise.all([
+        //     (() => {
+        //         const filesDataBuffer = Buffer.from(
+        //             JSON.stringify(this.sortFiles(files, albums))
+        //         );
+
+        //         return filesFile.save(filesDataBuffer, {
+        //             gzip: true,
+        //             public: false,
+        //             resumable: true,
+        //             contentType: 'application/json',
+        //             metadata: {
+        //                 cacheControl: 'no-cache',
+        //             },
+        //         });
+        //     })(),
+        //     (() => {
+        //         const albumsDataBuffer = Buffer.from(
+        //             JSON.stringify(this.sortAlbums(albums))
+        //         );
+
+        //         return albumsFile.save(albumsDataBuffer, {
+        //             gzip: true,
+        //             public: false,
+        //             resumable: true,
+        //             contentType: 'application/json',
+        //             metadata: {
+        //                 cacheControl: 'no-cache',
+        //             },
+        //         });
+        //     })(),
+        // ]);
+    }
+
     @Post()
-    async update(
+    async edit(
         @Body()
         body: {
             remove?: {

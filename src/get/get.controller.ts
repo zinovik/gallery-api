@@ -10,6 +10,7 @@ import {
     ACCESS_ANY,
 } from '../config';
 import { AlbumDTO, AlbumModel, FileDTO, FileModel } from '../types';
+import { User } from '../common/user';
 
 @Controller('get')
 export class GetController {
@@ -19,11 +20,11 @@ export class GetController {
     @Get('')
     async get(
         @Req()
-        request: Request & { user?: { accesses: string[]; email: string } }
+        request: Request & { user?: User }
     ): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
-        email?: string;
+        user?: User;
     }> {
         const [allAlbums, allFilesWithoutUrls, sourcesConfig] =
             (await Promise.all([
@@ -79,7 +80,7 @@ export class GetController {
         return {
             files,
             albums,
-            email: request.user?.email,
+            user: request.user,
         };
     }
 
