@@ -19,6 +19,12 @@ import {
     UpdatedFile,
 } from '../types';
 
+const getFolderFromUrl = (url: string, filename: string): string => {
+    const [folderPath] = url.split(`/${filename}`);
+
+    return folderPath.split('/').pop();
+};
+
 @Controller('edit')
 @UseGuards(new EditGuard())
 export class EditController {
@@ -39,87 +45,81 @@ export class EditController {
 
     @Post('add-new-files')
     async addNewFiles() {
-        const albums: AlbumModel[] = await this.storageService.getFile(BUCKET_NAME, ALBUMS_FILE_NAME) as AlbumModel[];
-        const files: FileModel[] = await this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME) as FileModel[];
-        const sources = await this.storageService.getFile(BUCKET_NAME, SOURCES_CONFIG_FILE_NAME)
+        const albums: AlbumModel[] = (await this.storageService.getFile(
+            BUCKET_NAME,
+            ALBUMS_FILE_NAME
+        )) as AlbumModel[];
+        const files: FileModel[] = (await this.storageService.getFile(
+            BUCKET_NAME,
+            FILES_FILE_NAME
+        )) as FileModel[];
+        const sourcesConfig: Record<string, string> =
+            (await this.storageService.getFile(
+                BUCKET_NAME,
+                SOURCES_CONFIG_FILE_NAME
+            )) as Record<string, string>;
 
-        // const newSources = sources.filter(
-        //     (source) => !files.some((file) => file.filename === source.filename)
-        // );
+        const newSources = Object.keys(sourcesConfig)
+            .filter(
+                (filename) => !files.some((file) => file.filename === filename)
+            )
+            .map((filename) => ({
+                filename,
+                folder: getFolderFromUrl(sourcesConfig[filename], filename),
+            }));
 
-        // console.log(
-        //     'NEW FILENAMES:',
-        //     newSources.map((source) => source.filename).join(', ')
-        // );
+        console.log(
+            'NEW FILENAMES:',
+            newSources.map((source) => source.filename).join(', ')
+        );
 
-        // if (newSources.length > 0) {
-        //     files.push(
-        //         ...newSources.map((source) => ({
-        //             path: `${source.folder}/unsorted`,
-        //             filename: source.filename,
-        //             description: '',
-        //         }))
-        //     );
-        // }
+        if (newSources.length > 0) {
+            files.push(
+                ...newSources.map((source) => ({
+                    path: `${source.folder}/unsorted`,
+                    filename: source.filename,
+                    description: '',
+                }))
+            );
+        }
 
-        // const newPaths = [
-        //     ...new Set(
-        //         files
-        //             .filter(
-        //                 (file) =>
-        //                     !albums.some((album) => album.path === file.path)
-        //             )
-        //             .map((file) => file.path)
-        //     ),
-        // ];
+        const newPaths = [
+            ...new Set(
+                files
+                    .filter(
+                        (file) =>
+                            !albums.some((album) => album.path === file.path)
+                    )
+                    .map((file) => file.path)
+            ),
+        ];
 
-        // console.log('NEW PATHS:', newPaths.join(', '));
+        console.log('NEW PATHS:', newPaths.join(', '));
 
-        // if (newPaths.length > 0) {
-        //     albums.push(
-        //         ...newPaths.map((path) => {
-        //             const [_, ...parts] = path.split('/');
+        if (newPaths.length > 0) {
+            albums.push(
+                ...newPaths.map((path) => {
+                    const [_, ...parts] = path.split('/');
 
-        //             return {
-        //                 title: parts.join('/'),
-        //                 path,
-        //             };
-        //         })
-        //     );
-        // }
+                    return {
+                        title: parts.join('/'),
+                        path,
+                    };
+                })
+            );
+        }
 
-        // await Promise.all([
-        //     (() => {
-        //         const filesDataBuffer = Buffer.from(
-        //             JSON.stringify(this.sortFiles(files, albums))
-        //         );
+        await this.storageService.saveFile(
+            BUCKET_NAME,
+            FILES_FILE_NAME,
+            this.sortFiles(files, albums)
+        );
 
-        //         return filesFile.save(filesDataBuffer, {
-        //             gzip: true,
-        //             public: false,
-        //             resumable: true,
-        //             contentType: 'application/json',
-        //             metadata: {
-        //                 cacheControl: 'no-cache',
-        //             },
-        //         });
-        //     })(),
-        //     (() => {
-        //         const albumsDataBuffer = Buffer.from(
-        //             JSON.stringify(this.sortAlbums(albums))
-        //         );
-
-        //         return albumsFile.save(albumsDataBuffer, {
-        //             gzip: true,
-        //             public: false,
-        //             resumable: true,
-        //             contentType: 'application/json',
-        //             metadata: {
-        //                 cacheControl: 'no-cache',
-        //             },
-        //         });
-        //     })(),
-        // ]);
+        await this.storageService.saveFile(
+            BUCKET_NAME,
+            FILES_FILE_NAME,
+            this.sortAlbums(albums)
+        );
     }
 
     @Post()
