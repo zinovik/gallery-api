@@ -3,13 +3,6 @@ import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import { GoogleAuth } from 'google-auth-library';
 import {
-    ALBUMS_FILE_NAME,
-    BUCKET_NAME,
-    FILES_FILE_NAME,
-    MEDIA_URLS_UPDATER,
-    SOURCES_CONFIG_FILE_NAME,
-} from '../config';
-import {
     AddedAlbum,
     AlbumModel,
     FileModel,
@@ -18,6 +11,9 @@ import {
     UpdatedAlbum,
     UpdatedFile,
 } from '../types';
+
+const MEDIA_URLS_UPDATER =
+    'https://europe-central2-zinovik-project.cloudfunctions.net/media-urls-updater';
 
 const getFolderFromUrl = (url: string, filename: string): string => {
     const [folderPath] = url.split(`/${filename}`);
@@ -45,19 +41,11 @@ export class EditController {
 
     @Post('add-new-files')
     async addNewFiles() {
-        const albums: AlbumModel[] = (await this.storageService.getFile(
-            BUCKET_NAME,
-            ALBUMS_FILE_NAME
-        )) as AlbumModel[];
-        const files: FileModel[] = (await this.storageService.getFile(
-            BUCKET_NAME,
-            FILES_FILE_NAME
-        )) as FileModel[];
-        const sourcesConfig: Record<string, string> =
-            (await this.storageService.getFile(
-                BUCKET_NAME,
-                SOURCES_CONFIG_FILE_NAME
-            )) as Record<string, string>;
+        const [albums, files, sourcesConfig] = await Promise.all([
+            this.storageService.getAlbums(),
+            this.storageService.getFiles(),
+            this.storageService.getSourcesConfig(),
+        ]);
 
         const newSources = Object.keys(sourcesConfig)
             .filter(
@@ -67,11 +55,6 @@ export class EditController {
                 filename,
                 folder: getFolderFromUrl(sourcesConfig[filename], filename),
             }));
-
-        console.log(
-            'NEW FILENAMES:',
-            newSources.map((source) => source.filename).join(', ')
-        );
 
         if (newSources.length > 0) {
             files.push(
@@ -94,8 +77,6 @@ export class EditController {
             ),
         ];
 
-        console.log('NEW PATHS:', newPaths.join(', '));
-
         if (newPaths.length > 0) {
             albums.push(
                 ...newPaths.map((path) => {
@@ -109,17 +90,13 @@ export class EditController {
             );
         }
 
-        await this.storageService.saveFile(
-            BUCKET_NAME,
-            FILES_FILE_NAME,
-            this.sortFiles(files, albums)
-        );
+        await this.storageService.saveAlbums(this.sortAlbums(albums));
+        await this.storageService.saveFiles(this.sortFiles(files, albums));
 
-        await this.storageService.saveFile(
-            BUCKET_NAME,
-            FILES_FILE_NAME,
-            this.sortAlbums(albums)
-        );
+        return {
+            newFiles: newSources.map((source) => source.filename),
+            newPaths: newPaths,
+        };
     }
 
     @Post()
@@ -157,10 +134,10 @@ export class EditController {
             shouldUpdateAlbums ||
             shouldRemoveFiles ||
             shouldUpdateFiles
-                ? [this.storageService.getFile(BUCKET_NAME, ALBUMS_FILE_NAME)]
+                ? [this.storageService.getAlbums()]
                 : []),
             ...(shouldRemoveFiles || shouldUpdateFiles
-                ? [this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME)]
+                ? [this.storageService.getFiles()]
                 : []),
         ])) as [AlbumModel[], FileModel[]];
 
@@ -180,11 +157,7 @@ export class EditController {
                 : albumsWithAdded;
             const mutableAlbumsUpdated = this.sortAlbums(albumsUpdated);
 
-            await this.storageService.saveFile(
-                BUCKET_NAME,
-                ALBUMS_FILE_NAME,
-                mutableAlbumsUpdated
-            );
+            await this.storageService.saveAlbums(mutableAlbumsUpdated);
         }
 
         if (shouldRemoveFiles || shouldUpdateFiles) {
@@ -199,11 +172,7 @@ export class EditController {
                 mutableAlbumsUpdated
             );
 
-            await this.storageService.saveFile(
-                BUCKET_NAME,
-                FILES_FILE_NAME,
-                filesSorted
-            );
+            await this.storageService.saveFiles(filesSorted);
         }
     }
 

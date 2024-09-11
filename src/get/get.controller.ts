@@ -1,15 +1,8 @@
 import { Controller, Get, Req } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { Public } from '../common/public';
-import {
-    BUCKET_NAME,
-    FILES_FILE_NAME,
-    ALBUMS_FILE_NAME,
-    SOURCES_CONFIG_FILE_NAME,
-    ACCESS_ALL,
-    ACCESS_ANY,
-} from '../config';
-import { AlbumDTO, AlbumModel, FileDTO, FileModel } from '../types';
+import { ACCESS_ALL, ACCESS_ANY } from '../config';
+import { AlbumDTO, FileDTO } from '../types';
 import { User } from '../common/user';
 
 @Controller('get')
@@ -27,14 +20,11 @@ export class GetController {
         user?: User;
     }> {
         const [allAlbums, allFilesWithoutUrls, sourcesConfig] =
-            (await Promise.all([
-                this.storageService.getFile(BUCKET_NAME, ALBUMS_FILE_NAME),
-                this.storageService.getFile(BUCKET_NAME, FILES_FILE_NAME),
-                this.storageService.getFile(
-                    BUCKET_NAME,
-                    SOURCES_CONFIG_FILE_NAME
-                ),
-            ])) as [AlbumModel[], FileModel[], Record<string, string>];
+            await Promise.all([
+                this.storageService.getAlbums(),
+                this.storageService.getFiles(),
+                this.storageService.getSourcesConfig(),
+            ]);
 
         const allAlbumAccesses = [
             ...allAlbums.filter(
