@@ -22,6 +22,7 @@ export interface AlbumDTO {
     title: string;
     text?: string | string[];
     isSorted?: true;
+    accesses?: string[];
 }
 
 export interface FileDTO {
@@ -33,17 +34,18 @@ export interface FileDTO {
     text?: string | string[];
     isVertical?: true;
     url: string;
+    accesses?: string[];
 }
 
-export interface RemovedAlbum {
+export interface RemovedAlbumDTO {
     path: string;
 }
 
-export interface RemovedFile {
+export interface RemovedFileDTO {
     filename: string;
 }
 
-export interface AddedAlbum {
+export interface AddedAlbumDTO {
     pathPart: string;
     title: string;
     text: string | string[];
@@ -51,16 +53,19 @@ export interface AddedAlbum {
     relation: 'after' | 'before' | 'in';
 }
 
-export interface UpdatedAlbum {
+export interface UpdatedAlbumDTO {
     path: string;
     newPath?: string;
     title?: string;
     text?: string | string[];
+    accesses?: string[];
 }
 
-export interface UpdatedFile {
+export interface UpdatedFileDTO {
     filename: string;
     path?: string;
+    isTitle?: boolean;
     description?: string;
     text?: string | string[];
+    accesses?: string[];
 }

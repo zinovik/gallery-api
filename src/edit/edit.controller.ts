@@ -1,16 +1,18 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import { GoogleAuth } from 'google-auth-library';
 import {
-    AddedAlbum,
+    AddedAlbumDTO,
     AlbumModel,
     FileModel,
-    RemovedAlbum,
-    RemovedFile,
-    UpdatedAlbum,
-    UpdatedFile,
+    RemovedAlbumDTO,
+    RemovedFileDTO,
+    UpdatedAlbumDTO,
+    UpdatedFileDTO,
 } from '../types';
+import { Public } from '../common/public';
+import { GoogleAuthGuard } from '../auth/google-auth.guard';
 
 const MEDIA_URLS_UPDATER =
     'https://europe-central2-zinovik-project.cloudfunctions.net/media-urls-updater';
@@ -22,7 +24,7 @@ const getFolderFromUrl = (url: string, filename: string): string => {
 };
 
 @Controller('edit')
-@UseGuards(new EditGuard())
+@UseGuards(EditGuard)
 export class EditController {
     constructor(private readonly storageService: StorageService) {}
 
@@ -37,6 +39,13 @@ export class EditController {
         });
 
         return data;
+    }
+
+    @Public() // to skip EditGuard
+    @UseGuards(GoogleAuthGuard)
+    @Get('media-urls-updater-google-auth')
+    async mediaUrlsUpdaterGoogleAuth() {
+        return true;
     }
 
     @Post('add-new-files')
@@ -104,18 +113,18 @@ export class EditController {
         @Body()
         body: {
             remove?: {
-                albums?: RemovedAlbum[];
-                files?: RemovedFile[];
+                albums?: RemovedAlbumDTO[];
+                files?: RemovedFileDTO[];
             };
             add?: {
-                albums?: AddedAlbum[];
+                albums?: AddedAlbumDTO[];
             };
             update?: {
-                albums?: UpdatedAlbum[];
-                files?: UpdatedFile[];
+                albums?: UpdatedAlbumDTO[];
+                files?: UpdatedFileDTO[];
             };
         }
-    ): Promise<void> {
+    ): Promise<{ result: string }> {
         console.log(JSON.stringify(body));
 
         const shouldRemoveAlbums =
@@ -174,11 +183,13 @@ export class EditController {
 
             await this.storageService.saveFiles(filesSorted);
         }
+
+        return { result: 'success' };
     }
 
     private removeAlbums(
         albums: AlbumModel[],
-        removedAlbums: RemovedAlbum[]
+        removedAlbums: RemovedAlbumDTO[]
     ): AlbumModel[] {
         return albums.filter(
             (album) =>
@@ -190,7 +201,7 @@ export class EditController {
 
     private addAlbums(
         albums: AlbumModel[],
-        addedAlbums: AddedAlbum[]
+        addedAlbums: AddedAlbumDTO[]
     ): AlbumModel[] {
         const albumsWithAdded = [...albums];
 
@@ -225,7 +236,7 @@ export class EditController {
 
     private updateAlbums(
         albums: AlbumModel[],
-        updateAlbums: UpdatedAlbum[]
+        updateAlbums: UpdatedAlbumDTO[]
     ): AlbumModel[] {
         return albums.map((album) => {
             const updatedAlbum = updateAlbums.find(
@@ -243,6 +254,14 @@ export class EditController {
                           : {}),
                       ...(updatedAlbum.text !== undefined
                           ? { text: updatedAlbum.text || undefined }
+                          : {}),
+                      ...(updatedAlbum.accesses !== undefined
+                          ? {
+                                accesses:
+                                    updatedAlbum.accesses.length > 0
+                                        ? updatedAlbum.accesses
+                                        : undefined,
+                            }
                           : {}),
                   }
                 : album;
@@ -303,7 +322,7 @@ export class EditController {
 
     private removeFiles(
         files: FileModel[],
-        removedFiles: RemovedFile[]
+        removedFiles: RemovedFileDTO[]
     ): FileModel[] {
         return files.filter(
             (file) =>
@@ -315,7 +334,7 @@ export class EditController {
 
     private updateFiles(
         files: FileModel[],
-        updatedFiles: UpdatedFile[]
+        updatedFiles: UpdatedFileDTO[]
     ): FileModel[] {
         return files.map((file) => {
             const updatedFile = updatedFiles.find(
@@ -326,11 +345,22 @@ export class EditController {
                 ? {
                       ...file,
                       ...(updatedFile.path ? { path: updatedFile.path } : {}),
+                      ...(updatedFile.isTitle !== undefined
+                          ? { isTitle: updatedFile.isTitle || undefined }
+                          : {}),
                       ...(updatedFile.description
                           ? { description: updatedFile.description }
                           : {}),
                       ...(updatedFile.text !== undefined
                           ? { text: updatedFile.text || undefined }
+                          : {}),
+                      ...(updatedFile.accesses !== undefined
+                          ? {
+                                accesses:
+                                    updatedFile.accesses.length > 0
+                                        ? updatedFile.accesses
+                                        : undefined,
+                            }
                           : {}),
                   }
                 : file;

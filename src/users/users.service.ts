@@ -15,6 +15,21 @@ export class UsersService {
             accesses: [ACCESS_ALL],
             isEditAccess: false,
         },
+        {
+            email: 'zinovikos@gmail.com',
+            accesses: ['mir'],
+            isEditAccess: false,
+        },
+        {
+            email: 'zinovikv@gmail.com',
+            accesses: ['mir', 'ero'],
+            isEditAccess: false,
+        },
+        {
+            email: 'zinovikn@gmail.com',
+            accesses: ['mir', 'ero'],
+            isEditAccess: false,
+        },
     ];
 
     async findOne(email: string): Promise<User | undefined> {

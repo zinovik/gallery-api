@@ -81,7 +81,7 @@ export class GetController {
         return (
             userAccesses.includes(ACCESS_ALL) ||
             requiredAccesses.includes(ACCESS_ANY) ||
-            requiredAccesses.some((access) => userAccesses.includes(access))
+            requiredAccesses.every((access) => userAccesses.includes(access))
         );
     }
 }
