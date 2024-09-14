@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import { GoogleAuth } from 'google-auth-library';
@@ -43,7 +43,7 @@ export class EditController {
 
     @Public() // to skip EditGuard
     @UseGuards(GoogleAuthGuard)
-    @Get('media-urls-updater-google-auth')
+    @Post('media-urls-updater-google-auth')
     async mediaUrlsUpdaterGoogleAuth() {
         return true;
     }
