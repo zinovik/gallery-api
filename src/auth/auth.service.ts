@@ -62,7 +62,7 @@ export class AuthService {
                     accesses: user.accesses,
                     csrf,
                 },
-                { expiresIn: `24h` }
+                { expiresIn: `30 days` }
             ),
             user,
             csrf,
