@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 
+const ALLOWED_SERVICE_ACCOUNTS = [
+    'zinovik-project@appspot.gserviceaccount.com',
+];
+
 @Injectable()
 export class GoogleAuthGuard implements CanActivate {
     constructor() {}
@@ -34,7 +38,7 @@ export class GoogleAuthGuard implements CanActivate {
             throw new UnauthorizedException();
         }
 
-        if (!payload?.email) {
+        if (!ALLOWED_SERVICE_ACCOUNTS.includes(payload?.email)) {
             throw new UnauthorizedException();
         }
 

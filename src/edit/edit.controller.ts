@@ -45,7 +45,7 @@ export class EditController {
     @UseGuards(GoogleAuthGuard)
     @Post('media-urls-updater-google-auth')
     async mediaUrlsUpdaterGoogleAuth() {
-        return true;
+        return this.mediaUrlsUpdater();
     }
 
     @Post('add-new-files')
