@@ -9,6 +9,12 @@ gcloud services enable artifactregistry.googleapis.com
 gcloud artifacts repositories create zinovik-repository --location=europe-central2 --repository-format=docker
 ```
 
+### create scheduler
+
+```bash
+gcloud scheduler jobs create http gallery-api-media-urls-updater --location=europe-central2 --schedule="0 0 * * 1" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/media-urls-updater-google-auth" --oidc-service-account-email=zinovik-project@appspot.gserviceaccount.com --http-method=post
+```
+
 ### create service account
 
 ```bash
