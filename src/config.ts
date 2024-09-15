@@ -1,2 +1,2 @@
-export const ACCESS_ALL = 'all';
-export const ACCESS_ANY = 'any';
+export const ACCESS_ADMIN = 'admin';
+export const ACCESS_PUBLIC = 'public';

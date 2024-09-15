@@ -1,7 +1,7 @@
 import { Controller, Get, Req } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { Public } from '../common/public';
-import { ACCESS_ALL, ACCESS_ANY } from '../config';
+import { ACCESS_ADMIN, ACCESS_PUBLIC } from '../config';
 import { AlbumDTO, FileDTO } from '../types';
 import { User } from '../common/user';
 
@@ -81,8 +81,8 @@ export class GetController {
         requiredAccesses = [] as string[]
     ): boolean {
         return (
-            userAccesses.includes(ACCESS_ALL) ||
-            requiredAccesses.includes(ACCESS_ANY) ||
+            userAccesses.includes(ACCESS_ADMIN) ||
+            requiredAccesses.includes(ACCESS_PUBLIC) ||
             requiredAccesses.every((access) => userAccesses.includes(access))
         );
     }
