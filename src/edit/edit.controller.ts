@@ -1,7 +1,6 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
-import { GoogleAuth } from 'google-auth-library';
 import {
     AddedAlbumDTO,
     AlbumModel,
@@ -14,8 +13,9 @@ import {
 import { Public } from '../common/public';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 
-const MEDIA_URLS_UPDATER =
-    'https://europe-central2-zinovik-project.cloudfunctions.net/media-urls-updater';
+const BATCH_SIZE = 100;
+const IS_PUBLIC = false;
+const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
 
 const getFolderFromUrl = (url: string, filename: string): string => {
     const [folderPath] = url.split(`/${filename}`);
@@ -30,15 +30,38 @@ export class EditController {
 
     @Post('media-urls-updater')
     async mediaUrlsUpdater() {
-        const auth = new GoogleAuth();
-        const client = await auth.getIdTokenClient(MEDIA_URLS_UPDATER);
+        const filePaths = await this.storageService.getFilePaths();
 
-        const { data } = await client.request({
-            url: MEDIA_URLS_UPDATER,
-            method: 'GET',
+        const sources: {
+            filename: string;
+            url: string;
+        }[] = [];
+
+        for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+            console.log(`files batch starting from ${i}`);
+            const promises = filePaths
+                .slice(i, i + BATCH_SIZE)
+                .filter((filePath) => filePath.includes('/'))
+                .map(async (filePath) => ({
+                    url: IS_PUBLIC
+                        ? `${PUBLIC_URL}/${filePath}`
+                        : await this.storageService.getSignedUrl(filePath),
+                    filename: filePath.split('/')[1],
+                }));
+
+            const sourcesPart = await Promise.all(promises);
+
+            sources.push(...sourcesPart);
+        }
+
+        const sourceConfig: Record<string, string> = {};
+        sources.forEach((source) => {
+            sourceConfig[source.filename] = source.url;
         });
 
-        return data;
+        await this.storageService.saveSourcesConfig(sourceConfig);
+
+        return { success: true };
     }
 
     @Public() // to skip EditGuard

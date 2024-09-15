@@ -40,8 +40,26 @@ export class StorageService {
         await this.saveFile(BUCKET_NAME, FILES_FILE_NAME, files);
     }
 
+    async getFilePaths(): Promise<string[]> {
+        const bucket = this.storage.bucket(BUCKET_NAME);
+        const [files] = await bucket.getFiles();
+
+        return files.map((file) => file.name);
+    }
+
+    async getSignedUrl(filePath: string): Promise<string> {
+        const bucket = this.storage.bucket(BUCKET_NAME);
+        const [url] = await bucket.file(filePath).getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days - maximum
+        });
+
+        return url;
+    }
+
     async saveSourcesConfig(
-        sourcesConfig: Promise<Record<string, string>>
+        sourcesConfig: Record<string, string>
     ): Promise<void> {
         await this.saveFile(
             BUCKET_NAME,
