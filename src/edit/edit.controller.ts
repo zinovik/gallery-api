@@ -25,15 +25,15 @@ const BATCH_SIZE = 100;
 const IS_PUBLIC_URL = false;
 const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
 
-const getFolderFromUrl = (url: string): string => {
+const getUrlEncodedFolderFromUrl = (url: string): string => {
     const [filePath] = url.split('?');
     const pathParts = filePath.split('/');
 
     return pathParts[pathParts.length - 2];
 };
 
-const mapFolderToPath = (folder: string): string =>
-    `${FOLDER_TO_PATH_MAP[folder] || folder}/unsorted`;
+const mapUrlEncodedFolderToPath = (folder: string): string =>
+    `${FOLDER_TO_PATH_MAP[decodeURIComponent(folder)] || folder}/unsorted`;
 
 @Controller('edit')
 @UseGuards(EditGuard)
@@ -101,8 +101,8 @@ export class EditController {
                     !mutableFiles.some((file) => file.filename === filename)
             )
             .map((filename) => ({
-                path: mapFolderToPath(
-                    getFolderFromUrl(sourcesConfig[filename])
+                path: mapUrlEncodedFolderToPath(
+                    getUrlEncodedFolderFromUrl(sourcesConfig[filename])
                 ),
                 filename,
                 description: '',
