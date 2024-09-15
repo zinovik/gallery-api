@@ -19,7 +19,7 @@ export class GetController {
         files: FileDTO[];
         user?: User;
     }> {
-        console.log(`gallery user: ${request.user?.email}`);
+        console.log(`gallery user email: ${request.user?.email}`);
 
         const [allAlbums, allFilesWithoutUrls, sourcesConfig] =
             await Promise.all([

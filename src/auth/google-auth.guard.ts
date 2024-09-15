@@ -42,8 +42,6 @@ export class GoogleAuthGuard implements CanActivate {
             throw new UnauthorizedException();
         }
 
-        console.log(`service-account: ${payload.email}`);
-
         return true;
     }
 }

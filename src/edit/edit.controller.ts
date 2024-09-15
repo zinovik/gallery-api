@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { EditGuard } from './edit.guard';
 import { StorageService } from '../storage/storage.service';
 import {
@@ -12,16 +12,28 @@ import {
 } from '../types';
 import { Public } from '../common/public';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
+import { User } from '../common/user';
+
+// Move to separate file
+const FOLDER_TO_PATH_MAP: Record<string, string> = {
+    '2024.07.04 - Mira Vychulki photo session (portraits_by_sh)':
+        'mira-vychulki-photo-session',
+    '2024.08.10 - Cynic, The Omnific': 'gigs',
+};
 
 const BATCH_SIZE = 100;
-const IS_PUBLIC = false;
+const IS_PUBLIC_URL = false;
 const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
 
-const getFolderFromUrl = (url: string, filename: string): string => {
-    const [folderPath] = url.split(`/${filename}`);
+const getFolderFromUrl = (url: string): string => {
+    const [filePath] = url.split('?');
+    const pathParts = filePath.split('/');
 
-    return folderPath.split('/').pop();
+    return pathParts[pathParts.length - 2];
 };
+
+const mapFolderToPath = (folder: string): string =>
+    `${FOLDER_TO_PATH_MAP[folder] || folder}/unsorted`;
 
 @Controller('edit')
 @UseGuards(EditGuard)
@@ -43,10 +55,10 @@ export class EditController {
                 .slice(i, i + BATCH_SIZE)
                 .filter((filePath) => filePath.includes('/'))
                 .map(async (filePath) => ({
-                    url: IS_PUBLIC
+                    url: IS_PUBLIC_URL
                         ? `${PUBLIC_URL}/${filePath}`
                         : await this.storageService.getSignedUrl(filePath),
-                    filename: filePath.split('/')[1],
+                    filename: filePath.split('/')[1], // only one level!
                 }));
 
             const sourcesPart = await Promise.all(promises);
@@ -64,71 +76,72 @@ export class EditController {
         return { success: true };
     }
 
-    @Public() // to skip EditGuard
+    @Public() // to skip AuthGuard and EditGuard
     @UseGuards(GoogleAuthGuard)
     @Post('media-urls-updater-google-auth')
-    async mediaUrlsUpdaterGoogleAuth() {
+    async mediaUrlsUpdaterGoogleAuth(
+        @Req()
+        request: Request & { user?: User }
+    ) {
+        console.log(`service-account email: ${request.user?.email}`);
         return this.mediaUrlsUpdater();
     }
 
     @Post('add-new-files')
     async addNewFiles() {
-        const [albums, files, sourcesConfig] = await Promise.all([
+        const [mutableAlbums, mutableFiles, sourcesConfig] = await Promise.all([
             this.storageService.getAlbums(),
             this.storageService.getFiles(),
             this.storageService.getSourcesConfig(),
         ]);
 
-        const newSources = Object.keys(sourcesConfig)
+        const newFiles = Object.keys(sourcesConfig)
             .filter(
-                (filename) => !files.some((file) => file.filename === filename)
+                (filename) =>
+                    !mutableFiles.some((file) => file.filename === filename)
             )
             .map((filename) => ({
+                path: mapFolderToPath(
+                    getFolderFromUrl(sourcesConfig[filename])
+                ),
                 filename,
-                folder: getFolderFromUrl(sourcesConfig[filename], filename),
+                description: '',
             }));
 
-        if (newSources.length > 0) {
-            files.push(
-                ...newSources.map((source) => ({
-                    path: `${source.folder}/unsorted`,
-                    filename: source.filename,
-                    description: '',
-                }))
-            );
+        if (newFiles.length > 0) {
+            mutableFiles.push(...newFiles);
         }
 
-        const newPaths = [
+        const newAlbums = [
             ...new Set(
-                files
+                mutableFiles
                     .filter(
                         (file) =>
-                            !albums.some((album) => album.path === file.path)
+                            !mutableAlbums.some(
+                                (album) => album.path === file.path
+                            )
                     )
                     .map((file) => file.path)
             ),
-        ];
+        ].map((path) => {
+            const [_, ...parts] = path.split('/');
 
-        if (newPaths.length > 0) {
-            albums.push(
-                ...newPaths.map((path) => {
-                    const [_, ...parts] = path.split('/');
+            return {
+                title: parts.join('/'),
+                path,
+            };
+        });
 
-                    return {
-                        title: parts.join('/'),
-                        path,
-                    };
-                })
-            );
+        if (newAlbums.length > 0) {
+            mutableAlbums.push(...newAlbums);
         }
 
-        await this.storageService.saveAlbums(this.sortAlbums(albums));
-        await this.storageService.saveFiles(this.sortFiles(files, albums));
+        await this.storageService.saveAlbums(this.sortAlbums(mutableAlbums));
+        await this.storageService.saveFiles(
+            this.sortFiles(mutableFiles, mutableAlbums)
+        );
 
-        return {
-            newFiles: newSources.map((source) => source.filename),
-            newPaths: newPaths,
-        };
+        return { newFiles, newAlbums };
     }
 
     @Post()
