@@ -40,8 +40,15 @@ const mapUrlEncodedFolderToPath = (folder: string): string =>
 export class EditController {
     constructor(private readonly storageService: StorageService) {}
 
-    @Post('media-urls-updater')
-    async mediaUrlsUpdater() {
+    @Public() // to skip AuthGuard and EditGuard
+    @UseGuards(GoogleAuthGuard)
+    @Post('update-sources-config')
+    async updateSourcesConfig(
+        @Req()
+        request: Request & { user?: User }
+    ) {
+        console.log(`service-account email: ${request.user?.email}`);
+
         const filePaths = await this.storageService.getFilePaths();
 
         const sources: {
@@ -74,17 +81,6 @@ export class EditController {
         await this.storageService.saveSourcesConfig(sourceConfig);
 
         return { success: true };
-    }
-
-    @Public() // to skip AuthGuard and EditGuard
-    @UseGuards(GoogleAuthGuard)
-    @Post('media-urls-updater-google-auth')
-    async mediaUrlsUpdaterGoogleAuth(
-        @Req()
-        request: Request & { user?: User }
-    ) {
-        console.log(`service-account email: ${request.user?.email}`);
-        return this.mediaUrlsUpdater();
     }
 
     @Post('add-new-files')

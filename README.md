@@ -12,7 +12,7 @@ gcloud artifacts repositories create zinovik-repository --location=europe-centra
 ### create scheduler
 
 ```bash
-gcloud scheduler jobs create http gallery-api-media-urls-updater --location=europe-central2 --schedule="0 0 * * 1" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/media-urls-updater-google-auth" --oidc-service-account-email=zinovik-project@appspot.gserviceaccount.com --http-method=post
+gcloud scheduler jobs create http update-sources-config --location=europe-central2 --schedule="0 0 * * 1" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/update-sources-config" --oidc-service-account-email=zinovik-project@appspot.gserviceaccount.com --http-method=post
 ```
 
 ### create service account
