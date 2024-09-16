@@ -1,9 +1,11 @@
 import { Controller, Get, Req } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { Public } from '../common/public';
-import { ACCESS_ADMIN, ACCESS_PUBLIC } from '../config';
 import { AlbumDTO, FileDTO } from '../types';
 import { User } from '../common/user';
+
+const ACCESS_ADMIN = 'admin';
+const ACCESS_PUBLIC = 'public';
 
 @Controller('get')
 export class GetController {

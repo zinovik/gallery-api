@@ -1,8 +1,10 @@
 import { Storage, File } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
 import { AlbumModel, FileModel } from '../types';
+import { User } from '../common/user';
 
 const BUCKET_NAME = 'zinovik-gallery';
+const USERS_FILE_NAME = 'users.json';
 const FILES_FILE_NAME = 'files.json';
 const ALBUMS_FILE_NAME = 'albums.json';
 const SOURCES_CONFIG_FILE_NAME = 'sources-config.json';
@@ -10,6 +12,10 @@ const SOURCES_CONFIG_FILE_NAME = 'sources-config.json';
 @Injectable()
 export class StorageService {
     private readonly storage: Storage = new Storage();
+
+    async getUsers(): Promise<User[]> {
+        return (await this.getFile(BUCKET_NAME, USERS_FILE_NAME)) as User[]; // because we trust our "db"
+    }
 
     async getAlbums(): Promise<AlbumModel[]> {
         return (await this.getFile(
