@@ -42,6 +42,8 @@ export class GoogleAuthGuard implements CanActivate {
             throw new UnauthorizedException();
         }
 
+        request['user'] = payload;
+
         return true;
     }
 }

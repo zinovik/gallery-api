@@ -15,13 +15,41 @@ import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { User } from '../common/user';
 
 const BATCH_SIZE = 100;
-const IS_PUBLIC_URL = false;
 const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
+const ACCESS_PUBLIC = 'public';
 
 @Controller('edit')
 @UseGuards(EditGuard)
 export class EditController {
     constructor(private readonly storageService: StorageService) {}
+
+    private getPublicFilenames(files: FileModel[], albums: AlbumModel[]) {
+        const allAlbumAccesses = [
+            ...albums.filter(
+                (album) => album.accesses && album.accesses.length > 0
+            ),
+        ]
+            .sort(
+                (a1, a2) =>
+                    a2.path.split('/').length - a1.path.split('/').length
+            )
+            .map((album) => ({
+                path: album.path,
+                accesses: album.accesses,
+            }));
+
+        return files
+            .filter((file) =>
+                (
+                    file.accesses ||
+                    allAlbumAccesses.find((albumAccess) =>
+                        albumAccess.path.includes(file.path.split('/')[0])
+                    )?.accesses ||
+                    []
+                ).includes(ACCESS_PUBLIC)
+            )
+            .map((file) => file.filename);
+    }
 
     @Public() // to skip AuthGuard and EditGuard
     @UseGuards(GoogleAuthGuard)
@@ -32,7 +60,13 @@ export class EditController {
     ) {
         console.log(`service-account email: ${request.user?.email}`);
 
-        const filePaths = await this.storageService.getFilePaths();
+        const [filePaths, files, albums] = await Promise.all([
+            this.storageService.getFilePaths(),
+            this.storageService.getFiles(),
+            this.storageService.getAlbums(),
+        ]);
+
+        const publicFilenames = this.getPublicFilenames(files, albums);
 
         const sources: {
             filename: string;
@@ -44,12 +78,16 @@ export class EditController {
             const promises = filePaths
                 .slice(i, i + BATCH_SIZE)
                 .filter((filePath) => filePath.includes('/'))
-                .map(async (filePath) => ({
-                    url: IS_PUBLIC_URL
-                        ? `${PUBLIC_URL}/${filePath}`
-                        : await this.storageService.getSignedUrl(filePath),
-                    filename: filePath.split('/')[1], // only one level!
-                }));
+                .map(async (filePath) => {
+                    const filename = filePath.split('/')[1]; // only one level!
+
+                    return {
+                        url: publicFilenames.includes(filename)
+                            ? `${PUBLIC_URL}/${filePath}`
+                            : await this.storageService.getSignedUrl(filePath),
+                        filename,
+                    };
+                });
 
             const sourcesPart = await Promise.all(promises);
 
@@ -217,7 +255,7 @@ export class EditController {
                           ? {
                                 accesses:
                                     updatedAlbum.accesses.length > 0
-                                        ? updatedAlbum.accesses
+                                        ? updatedAlbum.accesses // TODO: Update real isPublic
                                         : undefined,
                             }
                           : {}),
@@ -316,7 +354,7 @@ export class EditController {
                           ? {
                                 accesses:
                                     updatedFile.accesses.length > 0
-                                        ? updatedFile.accesses
+                                        ? updatedFile.accesses // TODO: Update real isPublic
                                         : undefined,
                             }
                           : {}),
