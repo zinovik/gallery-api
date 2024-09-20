@@ -74,6 +74,29 @@ export class StorageService {
         );
     }
 
+    async getIsPublic(storageFilePath: string): Promise<boolean> {
+        const bucket = this.storage.bucket(BUCKET_NAME);
+        const file = bucket.file(storageFilePath);
+        const [acl] = await file.acl.get();
+
+        return Array.isArray(acl)
+            ? acl.some(
+                  (entry) =>
+                      entry.entity === 'allUsers' && entry.role === 'READER'
+              )
+            : acl.entity === 'allUsers' && acl.role === 'READER';
+    }
+
+    async makePublic(storageFilePath: string) {
+        const bucket = this.storage.bucket(BUCKET_NAME);
+        await bucket.file(storageFilePath).makePublic();
+    }
+
+    async makePrivate(storageFilePath: string) {
+        const bucket = this.storage.bucket(BUCKET_NAME);
+        await bucket.file(storageFilePath).makePrivate({ strict: true });
+    }
+
     private async getFile(
         bucketName: string,
         fileName: string

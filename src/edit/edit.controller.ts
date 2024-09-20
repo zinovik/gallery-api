@@ -13,10 +13,11 @@ import {
 import { Public } from '../common/public';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { User } from '../common/user';
+import { getAlbumAccesses, hasAccessToFile } from '../helper';
 
-const BATCH_SIZE = 100;
+const URL_BATCH_SIZE = 100;
+const ACCESS_BATCH_SIZE = 200;
 const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
-const ACCESS_PUBLIC = 'public';
 
 @Controller('edit')
 @UseGuards(EditGuard)
@@ -24,31 +25,138 @@ export class EditController {
     constructor(private readonly storageService: StorageService) {}
 
     private getPublicFilenames(files: FileModel[], albums: AlbumModel[]) {
-        const allAlbumAccesses = [
-            ...albums.filter(
-                (album) => album.accesses && album.accesses.length > 0
-            ),
-        ]
-            .sort(
-                (a1, a2) =>
-                    a2.path.split('/').length - a1.path.split('/').length
-            )
-            .map((album) => ({
-                path: album.path,
-                accesses: album.accesses,
-            }));
+        const albumAccesses = getAlbumAccesses(albums);
 
         return files
-            .filter((file) =>
-                (
-                    file.accesses ||
-                    allAlbumAccesses.find((albumAccess) =>
-                        albumAccess.path.includes(file.path.split('/')[0])
-                    )?.accesses ||
-                    []
-                ).includes(ACCESS_PUBLIC)
-            )
+            .filter((file) => hasAccessToFile([], file, albumAccesses))
             .map((file) => file.filename);
+    }
+
+    private getFilename(filePath: string) {
+        return filePath.split('/').pop();
+    }
+
+    private getAccessesToUpdate(
+        filePathsIsPublic: {
+            filePath: string;
+            isPublic: boolean;
+        }[],
+        files: FileModel[],
+        albums: AlbumModel[]
+    ) {
+        const albumAccesses = getAlbumAccesses(albums);
+
+        const publicFilenamesFromJson = files
+            .filter((file) => hasAccessToFile([], file, albumAccesses))
+            .map((file) => file.filename);
+
+        const makePublicPaths: string[] = [];
+        const makePrivatePaths: string[] = [];
+
+        filePathsIsPublic.forEach(({ isPublic, filePath }) => {
+            if (
+                !isPublic &&
+                publicFilenamesFromJson.includes(this.getFilename(filePath))
+            )
+                makePublicPaths.push(filePath);
+
+            if (
+                isPublic &&
+                !publicFilenamesFromJson.includes(this.getFilename(filePath))
+            )
+                makePrivatePaths.push(filePath);
+        });
+
+        return [makePublicPaths, makePrivatePaths];
+    }
+
+    private async getFilePathsIsPublic(filePaths: string[]): Promise<
+        {
+            filePath: string;
+            isPublic: boolean;
+        }[]
+    > {
+        const filePathsIsPublic: {
+            filePath: string;
+            isPublic: boolean;
+        }[] = [];
+
+        for (let i = 0; i < filePaths.length; i += ACCESS_BATCH_SIZE) {
+            console.log(`- get file access batch starting from ${i}`);
+            const promises = filePaths
+                .slice(i, i + ACCESS_BATCH_SIZE)
+                .map(async (filePath) => ({
+                    filePath,
+                    isPublic: await this.storageService.getIsPublic(filePath),
+                }));
+
+            filePathsIsPublic.push(...(await Promise.all(promises)));
+        }
+        console.log('- get file access batch done');
+
+        return filePathsIsPublic;
+    }
+
+    private async updateStorageFileAccesses(
+        storageFilePaths: string[],
+        isPublic: boolean
+    ) {
+        for (let i = 0; i < storageFilePaths.length; i += ACCESS_BATCH_SIZE) {
+            console.log(
+                `- update ${
+                    isPublic ? 'public' : 'private'
+                } file access batch starting from ${i}`
+            );
+            const promises = storageFilePaths
+                .slice(i, i + ACCESS_BATCH_SIZE)
+                .map(async (storageFilePath) => {
+                    if (isPublic) {
+                        console.log(`Make PUBLIC: ${storageFilePath}`);
+                        await this.storageService.makePublic(storageFilePath);
+                    } else {
+                        console.log(`Make PRIVATE: ${storageFilePath}`);
+                        await this.storageService.makePrivate(storageFilePath);
+                    }
+                });
+
+            await Promise.all(promises);
+        }
+        console.log(
+            `- update ${isPublic ? 'public' : 'private'} file access batch done`
+        );
+    }
+
+    @Public() // to skip AuthGuard and EditGuard
+    @UseGuards(GoogleAuthGuard)
+    @Post('update-file-accesses')
+    async updateFileAccesses(
+        @Req()
+        request: Request & { user?: User }
+    ) {
+        console.log(
+            `service-account email (update-file-accesses): ${request.user?.email}`
+        );
+
+        const [filePaths, files, albums] = await Promise.all([
+            this.storageService.getFilePaths(),
+            this.storageService.getFiles(),
+            this.storageService.getAlbums(),
+        ]);
+
+        const filePathsIsPublic = await this.getFilePathsIsPublic(filePaths);
+
+        const [makePublicPaths, makePrivatePaths] = this.getAccessesToUpdate(
+            filePathsIsPublic,
+            files,
+            albums
+        );
+
+        console.log(makePublicPaths, makePrivatePaths);
+
+        await this.updateStorageFileAccesses(makePublicPaths, true);
+        await this.updateStorageFileAccesses(makePrivatePaths, false);
+
+        return { success: true, makePublicPaths, makePrivatePaths };
     }
 
     @Public() // to skip AuthGuard and EditGuard
@@ -58,7 +166,9 @@ export class EditController {
         @Req()
         request: Request & { user?: User }
     ) {
-        console.log(`service-account email: ${request.user?.email}`);
+        console.log(
+            `service-account email (update-sources-config): ${request.user?.email}`
+        );
 
         const [filePaths, files, albums] = await Promise.all([
             this.storageService.getFilePaths(),
@@ -73,19 +183,20 @@ export class EditController {
             url: string;
         }[] = [];
 
-        for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-            console.log(`files batch starting from ${i}`);
-            const promises = filePaths
-                .slice(i, i + BATCH_SIZE)
-                .filter((filePath) => filePath.includes('/'))
-                .map(async (filePath) => {
-                    const filename = filePath.split('/')[1]; // only one level!
+        for (let i = 0; i < filePaths.length; i += URL_BATCH_SIZE) {
+            console.log(`- url batch starting from ${i}`);
+            const promises = files
+                .slice(i, i + URL_BATCH_SIZE)
+                .map(async (file) => {
+                    const filePath = filePaths.find((filePath) =>
+                        filePath.endsWith(file.filename)
+                    );
 
                     return {
-                        url: publicFilenames.includes(filename)
+                        url: publicFilenames.includes(file.filename)
                             ? `${PUBLIC_URL}/${filePath}`
                             : await this.storageService.getSignedUrl(filePath),
-                        filename,
+                        filename: file.filename,
                     };
                 });
 
@@ -93,6 +204,7 @@ export class EditController {
 
             sources.push(...sourcesPart);
         }
+        console.log('- url batch done');
 
         const sourceConfig: Record<string, string> = {};
         sources.forEach((source) => {
