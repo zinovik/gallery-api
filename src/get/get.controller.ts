@@ -3,7 +3,7 @@ import { StorageService } from '../storage/storage.service';
 import { Public } from '../common/public';
 import { AlbumDTO, FileDTO } from '../types';
 import { User } from '../common/user';
-import { getAlbumAccesses, hasAccessToAlbum, hasAccessToFile } from '../helper';
+import { getAlbumAccesses, hasAccessToAlbum, hasAccessToFile } from '../helper/access';
 
 @Controller('get')
 export class GetController {

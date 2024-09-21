@@ -13,7 +13,14 @@ import {
 import { Public } from '../common/public';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { User } from '../common/user';
-import { getAlbumAccesses, hasAccessToFile } from '../helper';
+import {
+    getAlbumAccesses,
+    getPublicFilenames,
+    hasAccessToFile,
+} from '../helper/access';
+import { performBatch } from '../helper/batch';
+import { addNewAlbumsFromFiles, getFilename } from '../helper';
+import { sortAlbums, sortFiles } from '../helper/sort';
 
 const URL_BATCH_SIZE = 100;
 const ACCESS_BATCH_SIZE = 200;
@@ -23,18 +30,6 @@ const PUBLIC_URL = 'https://storage.googleapis.com/zinovik-gallery';
 @UseGuards(EditGuard)
 export class EditController {
     constructor(private readonly storageService: StorageService) {}
-
-    private getPublicFilenames(files: FileModel[], albums: AlbumModel[]) {
-        const albumAccesses = getAlbumAccesses(albums);
-
-        return files
-            .filter((file) => hasAccessToFile([], file, albumAccesses))
-            .map((file) => file.filename);
-    }
-
-    private getFilename(filePath: string) {
-        return filePath.split('/').pop();
-    }
 
     private getAccessesToUpdate(
         filePathsIsPublic: {
@@ -56,13 +51,13 @@ export class EditController {
         filePathsIsPublic.forEach(({ isPublic, filePath }) => {
             if (
                 !isPublic &&
-                publicFilenamesFromJson.includes(this.getFilename(filePath))
+                publicFilenamesFromJson.includes(getFilename(filePath))
             )
                 makePublicPaths.push(filePath);
 
             if (
                 isPublic &&
-                !publicFilenamesFromJson.includes(this.getFilename(filePath))
+                !publicFilenamesFromJson.includes(getFilename(filePath))
             )
                 makePrivatePaths.push(filePath);
         });
@@ -79,20 +74,15 @@ export class EditController {
         const filePathsIsPublic: {
             filePath: string;
             isPublic: boolean;
-        }[] = [];
-
-        for (let i = 0; i < filePaths.length; i += ACCESS_BATCH_SIZE) {
-            console.log(`- get file access batch starting from ${i}`);
-            const promises = filePaths
-                .slice(i, i + ACCESS_BATCH_SIZE)
-                .map(async (filePath) => ({
-                    filePath,
-                    isPublic: await this.storageService.getIsPublic(filePath),
-                }));
-
-            filePathsIsPublic.push(...(await Promise.all(promises)));
-        }
-        console.log('- get file access batch done');
+        }[] = await performBatch(
+            filePaths,
+            async (filePath) => ({
+                filePath,
+                isPublic: await this.storageService.getIsPublic(filePath),
+            }),
+            ACCESS_BATCH_SIZE,
+            'get file access'
+        );
 
         return filePathsIsPublic;
     }
@@ -101,28 +91,19 @@ export class EditController {
         storageFilePaths: string[],
         isPublic: boolean
     ) {
-        for (let i = 0; i < storageFilePaths.length; i += ACCESS_BATCH_SIZE) {
-            console.log(
-                `- update ${
-                    isPublic ? 'public' : 'private'
-                } file access batch starting from ${i}`
-            );
-            const promises = storageFilePaths
-                .slice(i, i + ACCESS_BATCH_SIZE)
-                .map(async (storageFilePath) => {
-                    if (isPublic) {
-                        console.log(`Make PUBLIC: ${storageFilePath}`);
-                        await this.storageService.makePublic(storageFilePath);
-                    } else {
-                        console.log(`Make PRIVATE: ${storageFilePath}`);
-                        await this.storageService.makePrivate(storageFilePath);
-                    }
-                });
-
-            await Promise.all(promises);
-        }
-        console.log(
-            `- update ${isPublic ? 'public' : 'private'} file access batch done`
+        await performBatch(
+            storageFilePaths,
+            async (storageFilePath) => {
+                if (isPublic) {
+                    console.log(`Make PUBLIC: ${storageFilePath}`);
+                    await this.storageService.makePublic(storageFilePath);
+                } else {
+                    console.log(`Make PRIVATE: ${storageFilePath}`);
+                    await this.storageService.makePrivate(storageFilePath);
+                }
+            },
+            ACCESS_BATCH_SIZE,
+            `update ${isPublic ? 'public' : 'private'} file access`
         );
     }
 
@@ -176,35 +157,28 @@ export class EditController {
             this.storageService.getAlbums(),
         ]);
 
-        const publicFilenames = this.getPublicFilenames(files, albums);
+        const publicFilenames = getPublicFilenames(files, albums);
 
         const sources: {
             filename: string;
             url: string;
-        }[] = [];
+        }[] = await performBatch(
+            files,
+            async (file) => {
+                const filePath = filePaths.find((filePath) =>
+                    filePath.endsWith(`/${file.filename}`)
+                );
 
-        for (let i = 0; i < filePaths.length; i += URL_BATCH_SIZE) {
-            console.log(`- url batch starting from ${i}`);
-            const promises = files
-                .slice(i, i + URL_BATCH_SIZE)
-                .map(async (file) => {
-                    const filePath = filePaths.find((filePath) =>
-                        filePath.endsWith(file.filename)
-                    );
-
-                    return {
-                        url: publicFilenames.includes(file.filename)
-                            ? `${PUBLIC_URL}/${filePath}`
-                            : await this.storageService.getSignedUrl(filePath),
-                        filename: file.filename,
-                    };
-                });
-
-            const sourcesPart = await Promise.all(promises);
-
-            sources.push(...sourcesPart);
-        }
-        console.log('- url batch done');
+                return {
+                    url: publicFilenames.includes(file.filename)
+                        ? `${PUBLIC_URL}/${filePath}`
+                        : await this.storageService.getSignedUrl(filePath),
+                    filename: file.filename,
+                };
+            },
+            URL_BATCH_SIZE,
+            'url'
+        );
 
         const sourceConfig: Record<string, string> = {};
         sources.forEach((source) => {
@@ -214,6 +188,40 @@ export class EditController {
         await this.storageService.saveSourcesConfig(sourceConfig);
 
         return { success: true };
+    }
+
+    @Public() // to skip AuthGuard and EditGuard
+    @UseGuards(GoogleAuthGuard)
+    @Post('save-albums-and-files')
+    async saveAlbumsAndFiles(
+        @Req() request: Request & { user?: User },
+        @Body()
+        {
+            albums,
+            files,
+        }: {
+            albums: AlbumModel[];
+            files: FileModel[];
+        }
+    ) {
+        console.log(
+            `service-account email (save-albums-and-files): ${request.user?.email}`
+        );
+
+        this.sortAndSaveAlbumsAndFiles(albums, files);
+
+        return { success: true };
+    }
+
+    private async sortAndSaveAlbumsAndFiles(
+        albums: AlbumModel[],
+        files: FileModel[]
+    ) {
+        const albumsSorted = sortAlbums(addNewAlbumsFromFiles(albums, files));
+        const filesSorted = sortFiles(files, albumsSorted);
+
+        await this.storageService.saveAlbums(albumsSorted);
+        await this.storageService.saveFiles(filesSorted);
     }
 
     @Post()
@@ -272,7 +280,7 @@ export class EditController {
             const albumsUpdated = shouldUpdateAlbums
                 ? this.updateAlbums(albumsWithAdded, body.update.albums)
                 : albumsWithAdded;
-            const mutableAlbumsUpdated = this.sortAlbums(albumsUpdated);
+            const mutableAlbumsUpdated = sortAlbums(albumsUpdated);
 
             await this.storageService.saveAlbums(mutableAlbumsUpdated);
         }
@@ -284,10 +292,7 @@ export class EditController {
             const filesUpdated = shouldUpdateFiles
                 ? this.updateFiles(filesWithoutRemoved, body.update.files)
                 : filesWithoutRemoved;
-            const filesSorted = this.sortFiles(
-                filesUpdated,
-                mutableAlbumsUpdated
-            );
+            const filesSorted = sortFiles(filesUpdated, mutableAlbumsUpdated);
 
             await this.storageService.saveFiles(filesSorted);
         }
@@ -376,58 +381,6 @@ export class EditController {
         });
     }
 
-    private sortAlbums(albums: AlbumModel[]): AlbumModel[] {
-        const sortedAlbums = albums
-            .filter((album) => album.isSorted)
-            .map((album) => album.path);
-
-        const topLevelAlbums = albums
-            .filter((album) => album.path.split('/').length === 1)
-            .map((album) => album.path);
-
-        return [...albums].sort((a1, a2) => {
-            const a1PathParts = a1.path.split('/');
-            const a2PathParts = a2.path.split('/');
-
-            if (a1PathParts.length === 1 && a2PathParts.length === 1) {
-                return 0;
-            }
-
-            if (a1PathParts[0] !== a2PathParts[0]) {
-                return (
-                    topLevelAlbums.indexOf(a1PathParts[0]) -
-                    topLevelAlbums.indexOf(a2PathParts[0])
-                );
-            }
-
-            // the same root path
-
-            // is sorted album
-            if (sortedAlbums.includes(a1PathParts[0])) {
-                if (a1PathParts.length === a2PathParts.length)
-                    return a1.path.localeCompare(a2.path);
-
-                const minPathParts = Math.min(
-                    a1PathParts.length,
-                    a2PathParts.length
-                );
-
-                for (let i = 0; i < minPathParts; i++) {
-                    if (a1PathParts[i] !== a2PathParts[i]) {
-                        if (a1PathParts[i] === undefined) return -1;
-                        if (a2PathParts[i] === undefined) return 1;
-                        return a1PathParts[i].localeCompare(a2PathParts[i]);
-                    }
-                }
-            }
-
-            if (a2.path.includes(a1.path)) return -1;
-            if (a1.path.includes(a2.path)) return 1;
-
-            return 0;
-        });
-    }
-
     private removeFiles(
         files: FileModel[],
         removedFiles: RemovedFileDTO[]
@@ -473,15 +426,5 @@ export class EditController {
                   }
                 : file;
         });
-    }
-
-    private sortFiles(files: FileModel[], albums: AlbumModel[]): FileModel[] {
-        const albumPaths = albums.map((album) => album.path);
-
-        return [...files].sort((f1, f2) =>
-            f1.path.split('/')[0] === f2.path.split('/')[0] // the same root path
-                ? f1.filename.localeCompare(f2.filename)
-                : albumPaths.indexOf(f1.path) - albumPaths.indexOf(f2.path)
-        );
     }
 }
