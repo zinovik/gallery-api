@@ -192,31 +192,23 @@ export class EditController {
 
     @Public() // to skip AuthGuard and EditGuard
     @UseGuards(GoogleAuthGuard)
-    @Post('save-albums-and-files')
-    async saveAlbumsAndFiles(
+    @Post('update-sort-albums-files')
+    async updateSortAlbumsFiles(
         @Req() request: Request & { user?: User },
-        @Body()
-        {
-            albums,
-            files,
-        }: {
-            albums: AlbumModel[];
-            files: FileModel[];
-        }
+        @Body() { files }: { files: FileModel[] }
     ) {
         console.log(
-            `service-account email (save-albums-and-files): ${request.user?.email}`
+            `service-account email (update-sort-albums-files): ${request.user?.email}`
         );
 
-        this.sortAndSaveAlbumsAndFiles(albums, files);
+        this.sortAndSaveAlbumsAndFiles(files);
 
         return { success: true };
     }
 
-    private async sortAndSaveAlbumsAndFiles(
-        albums: AlbumModel[],
-        files: FileModel[]
-    ) {
+    private async sortAndSaveAlbumsAndFiles(files: FileModel[]) {
+        const albums = await this.storageService.getAlbums();
+
         const albumsSorted = sortAlbums(addNewAlbumsFromFiles(albums, files));
         const filesSorted = sortFiles(files, albumsSorted);
 
