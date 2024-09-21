@@ -13,11 +13,7 @@ import {
 import { Public } from '../common/public';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { User } from '../common/user';
-import {
-    getAlbumAccesses,
-    getPublicFilenames,
-    hasAccessToFile,
-} from '../helper/access';
+import { getPublicFilenames } from '../helper/access';
 import { performBatch } from '../helper/batch';
 import { addNewAlbumsFromFiles, getFilename } from '../helper';
 import { sortAlbums, sortFiles } from '../helper/sort';
@@ -39,11 +35,7 @@ export class EditController {
         files: FileModel[],
         albums: AlbumModel[]
     ) {
-        const albumAccesses = getAlbumAccesses(albums);
-
-        const publicFilenamesFromJson = files
-            .filter((file) => hasAccessToFile([], file, albumAccesses))
-            .map((file) => file.filename);
+        const publicFilenamesFromJson = getPublicFilenames(files, albums);
 
         const makePublicPaths: string[] = [];
         const makePrivatePaths: string[] = [];

@@ -8,7 +8,7 @@ interface AlbumAccess {
     accesses: string[];
 }
 
-export const getAlbumAccesses = (albums: AlbumModel[]): AlbumAccess[] =>
+export const getAlbumAccessesSorted = (albums: AlbumModel[]): AlbumAccess[] =>
     [...albums.filter((album) => album.accesses && album.accesses.length > 0)]
         .sort((a1, a2) => a2.path.split('/').length - a1.path.split('/').length)
         .map((album) => ({
@@ -16,48 +16,45 @@ export const getAlbumAccesses = (albums: AlbumModel[]): AlbumAccess[] =>
             accesses: album.accesses,
         }));
 
-const hasAccess = (
+export const hasAccess = (
     userAccesses: string[],
-    requiredAccesses = [] as string[]
-): boolean =>
-    userAccesses.includes(ACCESS_ADMIN) ||
-    requiredAccesses.includes(ACCESS_PUBLIC) ||
-    requiredAccesses.every((access) => userAccesses.includes(access));
+    targetAccesses: string[],
+    path: string,
+    albumAccessesSorted: AlbumAccess[]
+) => {
+    const pathVariants = path
+        .split('/')
+        .map((_, i, pathParts) => pathParts.slice(0, i + 1).join('/'));
 
-export const hasAccessToAlbum = (
-    userAccesses: string[],
-    album: AlbumModel,
-    albumAccesses: AlbumAccess[]
-) =>
-    hasAccess(
-        userAccesses,
-        album.accesses ||
-            albumAccesses.find((albumAccess) =>
-                albumAccess.path.includes(album.path.split('/')[0])
-            )?.accesses
-    );
+    const requiredAccesses =
+        targetAccesses ||
+        albumAccessesSorted.find((albumAccess) =>
+            pathVariants.includes(albumAccess.path)
+        )?.accesses ||
+        [];
 
-// TODO: check file AND album accesses?
-export const hasAccessToFile = (
-    userAccesses: string[],
-    file: FileModel,
-    albumAccesses: AlbumAccess[]
-) =>
-    hasAccess(
-        userAccesses,
-        file.accesses ||
-            albumAccesses.find((albumAccess) =>
-                albumAccess.path.includes(file.path.split('/')[0])
-            )?.accesses
+    return (
+        userAccesses.includes(ACCESS_ADMIN) ||
+        requiredAccesses.includes(ACCESS_PUBLIC) ||
+        requiredAccesses.every((access) => userAccesses.includes(access))
     );
+};
 
 export const getPublicFilenames = (
     files: FileModel[],
     albums: AlbumModel[]
 ) => {
-    const albumAccesses = getAlbumAccesses(albums);
+    const albumAccessesSorted = getAlbumAccessesSorted(albums);
+    const userAccesses: string[] = []; // no accesses = public user
 
     return files
-        .filter((file) => hasAccessToFile([], file, albumAccesses))
+        .filter((file) =>
+            hasAccess(
+                userAccesses,
+                file.accesses,
+                file.path,
+                albumAccessesSorted
+            )
+        )
         .map((file) => file.filename);
 };

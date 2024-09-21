@@ -3,7 +3,7 @@ import { StorageService } from '../storage/storage.service';
 import { Public } from '../common/public';
 import { AlbumDTO, FileDTO } from '../types';
 import { User } from '../common/user';
-import { getAlbumAccesses, hasAccessToAlbum, hasAccessToFile } from '../helper/access';
+import { getAlbumAccessesSorted, hasAccess } from '../helper/access';
 
 @Controller('get')
 export class GetController {
@@ -27,17 +27,27 @@ export class GetController {
             this.storageService.getSourcesConfig(),
         ]);
 
-        const albumAccesses = getAlbumAccesses(albums);
+        const albumAccessesSorted = getAlbumAccessesSorted(albums);
 
         const userAccesses = request.user?.accesses || [];
 
         const filteredAlbums = albums.filter((album) =>
-            hasAccessToAlbum(userAccesses, album, albumAccesses)
+            hasAccess(
+                userAccesses,
+                album.accesses,
+                album.path,
+                albumAccessesSorted
+            )
         );
 
         const filteredFiles = filesWithoutUrls
             .filter((file) =>
-                hasAccessToFile(userAccesses, file, albumAccesses)
+                hasAccess(
+                    userAccesses,
+                    file.accesses,
+                    file.path,
+                    albumAccessesSorted
+                )
             )
             .map((file) => ({
                 ...file,
