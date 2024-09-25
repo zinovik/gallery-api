@@ -46,6 +46,8 @@ cat key-file.json | base64
 ```
 gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 
+gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/iam.serviceAccountTokenCreator"
+
 gcloud storage buckets add-iam-policy-binding gs://zinovik-gallery --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/storage.admin"
 
 gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/run.invoker"

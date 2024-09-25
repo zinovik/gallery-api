@@ -8,6 +8,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 const ALLOWED_SERVICE_ACCOUNTS = [
     'gallery@zinovik-project.iam.gserviceaccount.com',
+    'storage-tools@zinovik-project.iam.gserviceaccount.com',
 ];
 
 @Injectable()
