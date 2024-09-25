@@ -12,13 +12,16 @@ gcloud artifacts repositories create zinovik-repository --location=europe-centra
 ### create scheduler
 
 ```bash
-gcloud scheduler jobs create http update-sources-config --location=europe-central2 --schedule="0 0 * * 1" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/update-sources-config" --oidc-service-account-email=zinovik-project@appspot.gserviceaccount.com --http-method=post
+gcloud scheduler jobs create http gallery-update-sources-config --location=europe-central2 --schedule="0 0 * * 1" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/update-sources-config" --oidc-service-account-email=gallery@zinovik-project.iam.gserviceaccount.com --http-method=post
+
+gcloud scheduler jobs create http gallery-update-file-accesses --location=europe-central2 --schedule="55 23 * * 0" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/update-file-accesses" --oidc-service-account-email=gallery@zinovik-project.iam.gserviceaccount.com --http-method=post
 ```
 
 ### create service account
 
 ```bash
 gcloud iam service-accounts create github-actions
+gcloud iam service-accounts create gallery
 ```
 
 ### add roles (`Service Account User`, `Cloud Build Service Account` and `Viewer`) to the service account you want to use to deploy the cloud run
@@ -38,10 +41,14 @@ gcloud iam service-accounts keys create key-file.json --iam-account=github-actio
 cat key-file.json | base64
 ```
 
-### add access to secrets
+### add access to secrets, bucket and cloud run invoking
 
 ```
-gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:306312319198-compute@developer.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+
+gcloud storage buckets add-iam-policy-binding gs://zinovik-gallery --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/storage.admin"
+
+gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/run.invoker"
 ```
 
 ### add secrets

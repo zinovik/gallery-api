@@ -13,7 +13,7 @@
         "start": "node dist/main.js",
         "dev": "npm run build && DEVELOPMENT=true GOOGLE_APPLICATION_CREDENTIALS=key-file.json npm run start",
         "build:cloud": "gcloud builds submit --tag europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api --region=europe-west1 --project zinovik-project",
-        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-project --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest"
+        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-project --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest --service-account=storage-json-editor@zinovik-project.iam.gserviceaccount.com"
     },
     "dependencies": {
         "@google-cloud/storage": "7.12.1",
