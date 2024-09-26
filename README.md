@@ -17,7 +17,7 @@ gcloud scheduler jobs create http gallery-update-sources-config --location=europ
 gcloud scheduler jobs create http gallery-update-file-accesses --location=europe-central2 --schedule="55 23 * * 0" --uri="https://gallery-api-306312319198.europe-central2.run.app/edit/update-file-accesses" --oidc-service-account-email=gallery@zinovik-project.iam.gserviceaccount.com --http-method=post
 ```
 
-### create service account
+### create service accounts
 
 ```bash
 gcloud iam service-accounts create github-actions
@@ -37,7 +37,7 @@ gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:
 ### creating keys for service account for github-actions `GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY_FILE`
 
 ```bash
-gcloud iam service-accounts keys create key-file.json --iam-account=github-actions@appspot.gserviceaccount.com
+gcloud iam service-accounts keys create key-file.json --iam-account=github-actions@zinovik-project.iam.gserviceaccount.com
 cat key-file.json | base64
 ```
 
