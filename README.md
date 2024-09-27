@@ -43,7 +43,7 @@ cat key-file.json | base64
 
 ### add access to secrets, bucket and cloud run invoking
 
-```
+```bash
 gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 
 gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:gallery@zinovik-project.iam.gserviceaccount.com" --role="roles/iam.serviceAccountTokenCreator"
@@ -55,6 +55,6 @@ gcloud projects add-iam-policy-binding zinovik-project --member="serviceAccount:
 
 ### add secrets
 
-```
+```bash
 printf "JWT_SECRET" | gcloud secrets create gallery-api-jwt-secret --locations=europe-central2 --replication-policy="user-managed" --data-file=-
 ```

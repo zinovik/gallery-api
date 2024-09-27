@@ -23,15 +23,18 @@ export class AuthController {
         @Res({ passthrough: true }) response: Response,
         @Body() { token }: { token: string }
     ) {
-        const { accessToken, user, csrf } = await this.authService.signIn(
-            token
+        const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+        const { accessToken, csrf } = await this.authService.signIn(
+            token,
+            maxAge
         );
 
         response.cookie('access_token', accessToken, {
             httpOnly: true,
             sameSite: 'none',
             secure: true,
-            maxAge: 24 * 60 * 60 * 1000,
+            maxAge,
         });
 
         return { csrf };
@@ -42,6 +45,7 @@ export class AuthController {
     @Post('logout')
     async logout(@Res({ passthrough: true }) response: Response) {
         response.clearCookie('access_token');
+
         return { success: true };
     }
 }

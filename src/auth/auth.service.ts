@@ -32,8 +32,12 @@ export class AuthService {
     }
 
     async signIn(
-        token: string
-    ): Promise<{ accessToken: string; user: User; csrf: string }> {
+        token: string,
+        expiresIn: string | number
+    ): Promise<{
+        accessToken: string;
+        csrf: string;
+    }> {
         let ticket: LoginTicket;
 
         try {
@@ -62,9 +66,8 @@ export class AuthService {
                     accesses: user.accesses,
                     csrf,
                 },
-                { expiresIn: `30 days` }
+                { expiresIn }
             ),
-            user,
             csrf,
         };
     }
