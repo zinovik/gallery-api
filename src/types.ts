@@ -9,7 +9,6 @@ export interface AlbumModel {
 export interface FileModel {
     path: string;
     filename: string;
-    isTitle?: true;
     isNoThumbnail?: true;
     description: string;
     text?: string | string[];
@@ -28,7 +27,6 @@ export interface AlbumDTO {
 export interface FileDTO {
     path: string;
     filename: string;
-    isTitle?: true;
     isNoThumbnail?: true;
     description: string;
     text?: string | string[];
@@ -64,7 +62,6 @@ export interface UpdatedAlbumDTO {
 export interface UpdatedFileDTO {
     filename: string;
     path?: string;
-    isTitle?: boolean;
     description?: string;
     text?: string | string[];
     accesses?: string[];
