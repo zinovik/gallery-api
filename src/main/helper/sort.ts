@@ -1,4 +1,4 @@
-import { AlbumModel, FileModel } from '../types';
+import { AlbumModel, FileModel } from '../../types';
 
 export const sortAlbums = (albums: AlbumModel[]): AlbumModel[] => {
     const sortedAlbums = albums

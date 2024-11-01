@@ -10,7 +10,7 @@ export interface FileModel {
     path: string;
     filename: string;
     isNoThumbnail?: true;
-    description: string;
+    description?: string;
     text?: string | string[];
     isVertical?: true;
     accesses?: string[];
@@ -19,6 +19,7 @@ export interface FileModel {
 export interface AlbumDTO {
     path: string;
     title: string;
+    filesAmount: number;
     text?: string | string[];
     isSorted?: true;
     accesses?: string[];
@@ -28,7 +29,7 @@ export interface FileDTO {
     path: string;
     filename: string;
     isNoThumbnail?: true;
-    description: string;
+    description?: string;
     text?: string | string[];
     isVertical?: true;
     url: string;
@@ -44,11 +45,11 @@ export interface RemovedFileDTO {
 }
 
 export interface AddedAlbumDTO {
-    pathPart: string;
+    path: string;
     title: string;
     text: string | string[];
     relatedPath: string;
-    relation: 'after' | 'before' | 'in';
+    relation: 'after' | 'before';
 }
 
 export interface UpdatedAlbumDTO {

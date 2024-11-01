@@ -1,26 +1,16 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
-import { Public } from '../common/public';
+import { getAlbumAccessesSorted, hasAccess } from './helper/access';
 import { AlbumDTO, FileDTO } from '../types';
-import { User } from '../common/user';
-import { getAlbumAccessesSorted, hasAccess } from '../helper/access';
 
-@Controller('get')
-export class GetController {
+@Injectable()
+export class GetService {
     constructor(private readonly storageService: StorageService) {}
 
-    @Public()
-    @Get('')
-    async get(
-        @Req()
-        request: Request & { user?: User }
-    ): Promise<{
+    async get(userAccesses: string[]): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
-        user?: User;
     }> {
-        console.log(`gallery user email: ${request.user?.email}`);
-
         const [albums, filesWithoutUrls, sourcesConfig] = await Promise.all([
             this.storageService.getAlbums(),
             this.storageService.getFiles(),
@@ -28,8 +18,6 @@ export class GetController {
         ]);
 
         const albumAccessesSorted = getAlbumAccessesSorted(albums);
-
-        const userAccesses = request.user?.accesses || [];
 
         const filteredAlbums = albums.filter((album) =>
             hasAccess(
@@ -56,8 +44,18 @@ export class GetController {
 
         return {
             files: filteredFiles,
-            albums: filteredAlbums,
-            user: request.user,
+            albums: filteredAlbums.map((album) => ({
+                ...album,
+                filesAmount: filteredFiles.filter((file) =>
+                    this.isThisOrChildPath(file.path, album.path)
+                ).length,
+            })),
         };
+    }
+
+    private isThisOrChildPath(childPath: string, parentPath: string) {
+        return (
+            childPath === parentPath || childPath.startsWith(`${parentPath}/`)
+        );
     }
 }

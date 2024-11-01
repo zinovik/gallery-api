@@ -1,4 +1,4 @@
-import { AlbumModel, FileModel } from '../types';
+import { AlbumModel, FileModel } from '../../types';
 
 const ACCESS_ADMIN = 'admin';
 const ACCESS_PUBLIC = 'public';
