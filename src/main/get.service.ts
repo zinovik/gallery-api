@@ -7,7 +7,12 @@ import { AlbumDTO, FileDTO } from '../types';
 export class GetService {
     constructor(private readonly storageService: StorageService) {}
 
-    async get(userAccesses: string[]): Promise<{
+    async get(
+        mainPath: string,
+        userAccesses: string[],
+        isHomeOnly: boolean,
+        isHomeInclude: boolean
+    ): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
@@ -19,7 +24,7 @@ export class GetService {
 
         const albumAccessesSorted = getAlbumAccessesSorted(albums);
 
-        const filteredAlbums = albums.filter((album) =>
+        const accessibleAlbums = albums.filter((album) =>
             hasAccess(
                 userAccesses,
                 album.accesses,
@@ -28,7 +33,7 @@ export class GetService {
             )
         );
 
-        const filteredFiles = filesWithoutUrls
+        const accessibleFiles = filesWithoutUrls
             .filter((file) =>
                 hasAccess(
                     userAccesses,
@@ -43,14 +48,31 @@ export class GetService {
             }));
 
         return {
-            files: filteredFiles,
-            albums: filteredAlbums.map((album) => ({
+            files: isHomeOnly
+                ? []
+                : mainPath
+                ? accessibleFiles.filter(
+                      (file) => file.path.split('/')[0] === mainPath
+                  )
+                : accessibleFiles,
+            albums: (mainPath || isHomeOnly
+                ? accessibleAlbums.filter(
+                      (album) =>
+                          (isHomeInclude && this.isHomePath(album.path)) ||
+                          (!isHomeOnly && album.path.split('/')[0] === mainPath)
+                  )
+                : accessibleAlbums
+            ).map((album) => ({
                 ...album,
-                filesAmount: filteredFiles.filter((file) =>
+                filesAmount: accessibleFiles.filter((file) =>
                     this.isThisOrChildPath(file.path, album.path)
                 ).length,
             })),
         };
+    }
+
+    private isHomePath(path: string): boolean {
+        return path.split('/').length === 1;
     }
 
     private isThisOrChildPath(childPath: string, parentPath: string) {

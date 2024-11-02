@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Post,
+    Query,
+    Req,
+    UseGuards,
+} from '@nestjs/common';
 import { Public } from '../common/public';
 import {
     AddedAlbumDTO,
@@ -26,8 +35,12 @@ export class MainController {
     ) {}
 
     @Public()
-    @Get('get')
-    async get(@Req() request: Request & { user?: User }): Promise<{
+    @Get('get/:mainPath?')
+    async get(
+        @Req() request: Request & { user?: User },
+        @Query() { home }: { home: string },
+        @Param() { mainPath }: { mainPath: string }
+    ): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
         user?: User;
@@ -37,7 +50,12 @@ export class MainController {
         const userAccesses = request.user?.accesses || [];
 
         return {
-            ...(await this.getService.get(userAccesses)),
+            ...(await this.getService.get(
+                mainPath,
+                userAccesses,
+                home === 'only',
+                home === 'include' || home === 'only'
+            )),
             user: request.user,
         };
     }
