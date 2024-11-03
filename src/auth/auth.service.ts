@@ -1,8 +1,6 @@
 import { LoginTicket, OAuth2Client } from 'google-auth-library';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
-import { User } from '../common/user';
 
 const CLIENT_ID =
     '306312319198-u9h4e07khciuet8hnj00b8fvmq25rlj0.apps.googleusercontent.com';
@@ -11,12 +9,9 @@ const CLIENT_ID =
 export class AuthService {
     private readonly client = new OAuth2Client();
 
-    constructor(
-        private usersService: UsersService,
-        private jwtService: JwtService
-    ) {}
+    constructor(private jwtService: JwtService) {}
 
-    private generateCSRF(length: number) {
+    generateCSRF(length: number) {
         let result = '';
 
         const characters =
@@ -31,13 +26,7 @@ export class AuthService {
         return result;
     }
 
-    async signIn(
-        token: string,
-        expiresIn: string | number
-    ): Promise<{
-        accessToken: string;
-        csrf: string;
-    }> {
+    async verifyAndDecodeGoogleToken(token: string): Promise<string> {
         let ticket: LoginTicket;
 
         try {
@@ -55,20 +44,24 @@ export class AuthService {
 
         const payload = ticket.getPayload();
 
-        const user = await this.usersService.findOne(payload.email);
-        const csrf = this.generateCSRF(32);
+        return payload.email;
+    }
 
-        return {
-            accessToken: await this.jwtService.signAsync(
-                {
-                    email: user.email,
-                    isEditAccess: user.isEditAccess,
-                    accesses: user.accesses,
-                    csrf,
-                },
-                { expiresIn }
-            ),
-            csrf,
-        };
+    async createAccessToken(
+        email: string,
+        isEditAccess: boolean,
+        accesses: string[],
+        csrf: string,
+        expiresIn: string | number
+    ): Promise<string> {
+        return await this.jwtService.signAsync(
+            {
+                email,
+                isEditAccess,
+                accesses,
+                csrf,
+            },
+            { expiresIn }
+        );
     }
 }

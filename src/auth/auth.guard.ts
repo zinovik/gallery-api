@@ -7,10 +7,17 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { IS_PUBLIC_KEY } from '../common/public';
+import { AuthService } from './auth.service';
+
+const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService, private reflector: Reflector) {}
+    constructor(
+        private jwtService: JwtService,
+        private authService: AuthService,
+        private reflector: Reflector
+    ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const isPublic = this.reflector.getAllAndOverride<boolean>(
@@ -45,6 +52,24 @@ export class AuthGuard implements CanActivate {
             if (isPublic) return true;
             throw new UnauthorizedException();
         }
+
+        const accessToken = await this.authService.createAccessToken(
+            request['user'].email,
+            request['user'].isEditAccess,
+            request['user'].accesses,
+            request['user'].csrf,
+            MAX_AGE
+        );
+
+        context
+            .switchToHttp()
+            .getResponse()
+            .cookie('access_token', accessToken, {
+                httpOnly: true,
+                sameSite: 'none',
+                secure: true,
+                maxAge: MAX_AGE,
+            });
 
         return true;
     }
