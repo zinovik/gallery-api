@@ -67,7 +67,7 @@ export class EditService {
             const albumsUpdated = shouldUpdateAlbums
                 ? this.updateAlbums(albumsWithAdded, body.update.albums)
                 : albumsWithAdded;
-            const mutableAlbumsUpdated = sortAlbums(albumsUpdated);
+            mutableAlbumsUpdated = sortAlbums(albumsUpdated);
 
             await this.storageService.saveAlbums(mutableAlbumsUpdated);
         }
