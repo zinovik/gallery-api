@@ -1,9 +1,4 @@
-import {
-    Injectable,
-    CanActivate,
-    ExecutionContext,
-    UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { IS_PUBLIC_KEY } from '../common/public';
@@ -29,8 +24,7 @@ export class AuthGuard implements CanActivate {
         const token = request.cookies['access_token'];
 
         if (!token) {
-            if (isPublic) return true;
-            throw new UnauthorizedException();
+            return isPublic;
         }
 
         try {
@@ -43,14 +37,12 @@ export class AuthGuard implements CanActivate {
             const csrf = this.extractCSRFTokenFromHeader(request);
 
             if (csrf !== payload.csrf) {
-                if (isPublic) return true;
-                throw new UnauthorizedException();
+                return isPublic;
             }
 
             request['user'] = payload;
         } catch {
-            if (isPublic) return true;
-            throw new UnauthorizedException();
+            return isPublic;
         }
 
         const accessToken = await this.authService.createAccessToken(

@@ -1,9 +1,4 @@
-import {
-    Injectable,
-    CanActivate,
-    ExecutionContext,
-    UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 
 const ALLOWED_SERVICE_ACCOUNTS = [
@@ -20,13 +15,13 @@ export class GoogleAuthGuard implements CanActivate {
         const authorizationHeader = request.headers['authorization'];
 
         if (!authorizationHeader) {
-            throw new UnauthorizedException();
+            return false;
         }
 
         const [_, idToken] = authorizationHeader.split(' ');
 
         if (!idToken) {
-            throw new UnauthorizedException();
+            return false;
         }
 
         let payload;
@@ -36,11 +31,11 @@ export class GoogleAuthGuard implements CanActivate {
             const ticket = await client.verifyIdToken({ idToken });
             payload = ticket.getPayload();
         } catch {
-            throw new UnauthorizedException();
+            return false;
         }
 
         if (!ALLOWED_SERVICE_ACCOUNTS.includes(payload?.email)) {
-            throw new UnauthorizedException();
+            return false;
         }
 
         request['user'] = payload;
