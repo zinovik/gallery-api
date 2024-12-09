@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { getAlbumAccessesSorted, hasAccess } from './helper/access';
-import { AlbumDTO, FileDTO } from '../types';
+import { Album, File } from '../types';
 
 @Injectable()
 export class GetService {
@@ -13,8 +13,8 @@ export class GetService {
         isHomeOnly: boolean,
         isHomeInclude: boolean
     ): Promise<{
-        albums: AlbumDTO[];
-        files: FileDTO[];
+        albums: Album[];
+        files: File[];
     }> {
         const [albums, filesWithoutUrls, sourcesConfig] = await Promise.all([
             this.storageService.getAlbums(),

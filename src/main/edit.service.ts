@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import {
-    AddedAlbumDTO,
+    AddedAlbum,
     AlbumModel,
     FileModel,
-    RemovedAlbumDTO,
-    RemovedFileDTO,
-    UpdatedAlbumDTO,
-    UpdatedFileDTO,
+    RemovedAlbum,
+    RemovedFile,
+    UpdatedAlbum,
+    UpdatedFile,
 } from '../types';
 import { sortAlbums, sortFiles } from './helper/sort';
 
@@ -17,19 +17,17 @@ export class EditService {
 
     async edit(body: {
         remove?: {
-            albums?: RemovedAlbumDTO[];
-            files?: RemovedFileDTO[];
+            albums?: RemovedAlbum[];
+            files?: RemovedFile[];
         };
         add?: {
-            albums?: AddedAlbumDTO[];
+            albums?: AddedAlbum[];
         };
         update?: {
-            albums?: UpdatedAlbumDTO[];
-            files?: UpdatedFileDTO[];
+            albums?: UpdatedAlbum[];
+            files?: UpdatedFile[];
         };
     }): Promise<{ result: string }> {
-        console.log(JSON.stringify(body));
-
         const shouldRemoveAlbums =
             body.remove?.albums && body.remove.albums.length > 0;
         const shouldRemoveFiles =
@@ -89,7 +87,7 @@ export class EditService {
 
     private removeAlbums(
         albums: AlbumModel[],
-        removedAlbums: RemovedAlbumDTO[]
+        removedAlbums: RemovedAlbum[]
     ): AlbumModel[] {
         return albums.filter(
             (album) =>
@@ -101,7 +99,7 @@ export class EditService {
 
     private addAlbums(
         albums: AlbumModel[],
-        addedAlbums: AddedAlbumDTO[]
+        addedAlbums: AddedAlbum[]
     ): AlbumModel[] {
         const albumsWithAdded = [...albums];
 
@@ -128,7 +126,7 @@ export class EditService {
 
     private updateAlbums(
         albums: AlbumModel[],
-        updateAlbums: UpdatedAlbumDTO[]
+        updateAlbums: UpdatedAlbum[]
     ): AlbumModel[] {
         return albums.map((album) => {
             const updatedAlbum = updateAlbums.find(
@@ -162,7 +160,7 @@ export class EditService {
 
     private removeFiles(
         files: FileModel[],
-        removedFiles: RemovedFileDTO[]
+        removedFiles: RemovedFile[]
     ): FileModel[] {
         return files.filter(
             (file) =>
@@ -174,7 +172,7 @@ export class EditService {
 
     private updateFiles(
         files: FileModel[],
-        updatedFiles: UpdatedFileDTO[]
+        updatedFiles: UpdatedFile[]
     ): FileModel[] {
         return files.map((file) => {
             const updatedFile = updatedFiles.find(

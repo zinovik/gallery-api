@@ -17,7 +17,7 @@ export interface FileModel {
     accesses?: string[];
 }
 
-export interface AlbumDTO {
+export interface Album {
     path: string;
     title: string;
     filesAmount: number;
@@ -27,7 +27,7 @@ export interface AlbumDTO {
     accesses?: string[];
 }
 
-export interface FileDTO {
+export interface File {
     path: string;
     filename: string;
     isNoThumbnail?: true;
@@ -38,15 +38,15 @@ export interface FileDTO {
     accesses?: string[];
 }
 
-export interface RemovedAlbumDTO {
+export interface RemovedAlbum {
     path: string;
 }
 
-export interface RemovedFileDTO {
+export interface RemovedFile {
     filename: string;
 }
 
-export interface AddedAlbumDTO {
+export interface AddedAlbum {
     path: string;
     title: string;
     text: string | string[];
@@ -54,7 +54,7 @@ export interface AddedAlbumDTO {
     relation: 'after' | 'before';
 }
 
-export interface UpdatedAlbumDTO {
+export interface UpdatedAlbum {
     path: string;
     newPath?: string;
     title?: string;
@@ -62,7 +62,7 @@ export interface UpdatedAlbumDTO {
     accesses?: string[];
 }
 
-export interface UpdatedFileDTO {
+export interface UpdatedFile {
     filename: string;
     path?: string;
     description?: string;
