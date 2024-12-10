@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import {
+    AddAlbumRelation,
     AddedAlbum,
     AlbumModel,
     FileModel,
@@ -8,8 +9,8 @@ import {
     RemovedFile,
     UpdatedAlbum,
     UpdatedFile,
-} from '../types';
-import { sortAlbums, sortFiles } from './helper/sort';
+} from '../common/album-file.types';
+import { sortAlbums, sortFiles } from './helper/sort.helper';
 
 @Injectable()
 export class EditService {
@@ -111,7 +112,8 @@ export class EditService {
             if (relatedPathIndex === -1) return;
 
             albumsWithAdded.splice(
-                relatedPathIndex + (addedAlbum.relation === 'before' ? 0 : 1),
+                relatedPathIndex +
+                    (addedAlbum.relation === AddAlbumRelation.before ? 0 : 1),
                 0,
                 {
                     title: addedAlbum.title,

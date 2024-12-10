@@ -7,31 +7,34 @@ import {
     Query,
     Req,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
-import { Public } from '../common/public';
-import { Album, File, FileModel } from '../types';
-import { User } from '../common/user';
+import { Public } from '../common/public.decorator';
+import { Album, File, FileModel } from '../common/album-file.types';
+import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { EditGuard } from '../auth/edit.guard';
 import { GetService } from './get.service';
 import { EditService } from './edit.service';
 import { UtilsService } from './utils.service';
 import { EditInDto } from './dto/edit.in.dto';
+import { JwtUpdate } from '../auth/jwt-update.interceptor';
 
 @Controller()
-export class MainController {
+@UseInterceptors(JwtUpdate)
+export class GalleryController {
     constructor(
         private getService: GetService,
         private editService: EditService,
         private utilsService: UtilsService
     ) {}
 
-    @Public()
     @Get('get/:mainPath?')
+    @Public()
     async get(
-        @Req() request: Request & { user?: User },
-        @Query() { home }: { home: string },
-        @Param() { mainPath }: { mainPath: string }
+        @Req() request: Request & { user?: User; token?: string },
+        @Query('home') home: string,
+        @Param('mainPath') mainPath: string
     ): Promise<{
         albums: Album[];
         files: File[];
@@ -50,42 +53,41 @@ export class MainController {
         };
     }
 
-    @Public() // to skip AuthGuard and EditGuard
-    @UseGuards(GoogleAuthGuard)
+    @Post('edit')
+    @UseGuards(EditGuard)
+    async edit(@Body() body: EditInDto): Promise<{ result: string }> {
+        await this.editService.edit(body);
+
+        return { result: 'success' };
+    }
+
+    // service accounts endpoints
+
     @Post('edit/update-file-accesses')
-    async updateFileAccesses(@Req() request: Request & { user?: User }) {
+    @Public() // to skip AuthGuard
+    @UseGuards(GoogleAuthGuard)
+    async updateFileAccesses() {
         const { makePublicPaths, makePrivatePaths } =
             await this.utilsService.updateFileAccesses();
 
         return { success: true, makePublicPaths, makePrivatePaths };
     }
 
-    @Public() // to skip AuthGuard and EditGuard
-    @UseGuards(GoogleAuthGuard)
     @Post('edit/update-sources-config')
-    async updateSourcesConfig(@Req() request: Request & { user?: User }) {
+    @Public() // to skip AuthGuard
+    @UseGuards(GoogleAuthGuard)
+    async updateSourcesConfig() {
         await this.utilsService.updateSourcesConfig();
 
         return { success: true };
     }
 
-    @Public() // to skip AuthGuard and EditGuard
-    @UseGuards(GoogleAuthGuard)
     @Post('edit/update-sort-albums-files')
+    @Public() // to skip AuthGuard
+    @UseGuards(GoogleAuthGuard)
     async updateSortAlbumsFiles(@Body() { files }: { files: FileModel[] }) {
         await this.utilsService.sortAndSaveAlbumsAndFiles(files);
 
         return { success: true };
-    }
-
-    @Post('edit')
-    @UseGuards(EditGuard)
-    async edit(
-        @Body()
-        body: EditInDto
-    ): Promise<{ result: string }> {
-        await this.editService.edit(body);
-
-        return { result: 'success' };
     }
 }

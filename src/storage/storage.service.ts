@@ -1,7 +1,7 @@
 import { Storage, File } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
-import { AlbumModel, FileModel } from '../types';
-import { User } from '../common/user';
+import { AlbumModel, FileModel } from '../common/album-file.types';
+import { User } from '../common/user.type';
 
 const BUCKET_NAME = 'zinovik-gallery';
 const USERS_FILE_NAME = 'users.json';

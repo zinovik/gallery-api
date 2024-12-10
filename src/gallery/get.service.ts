@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
-import { getAlbumAccessesSorted, hasAccess } from './helper/access';
-import { Album, File } from '../types';
+import { getAlbumAccessesSorted, hasAccess } from './helper/access.helper';
+import { Album, File } from '../common/album-file.types';
 
 @Injectable()
 export class GetService {

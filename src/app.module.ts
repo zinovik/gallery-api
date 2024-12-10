@@ -1,22 +1,25 @@
 import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
-import { MainModule } from './main/main.module';
+import { GalleryModule } from './gallery/gallery.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtToUserMiddleware } from './auth/jwt-to-user.middleware';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
-import { LoggingInterceptor } from './logging/logging.interceptor';
-import { JwtUpdate } from './auth/jwt-update.interceptor';
-import { HttpExceptionFilter } from './exceptions/http-exception.filter';
+import { LoggingInterceptor } from './global/logging.interceptor';
+import { HttpExceptionFilter } from './global/http-exception.filter';
+import { ConfigModule } from '@nestjs/config';
+import configuration from './global/configuration';
 
 @Module({
-    imports: [MainModule, AuthModule],
+    imports: [
+        ConfigModule.forRoot({
+            load: [configuration],
+        }),
+        GalleryModule,
+        AuthModule,
+    ],
     providers: [
         {
             provide: APP_INTERCEPTOR,
             useClass: LoggingInterceptor,
-        },
-        {
-            provide: APP_INTERCEPTOR,
-            useClass: JwtUpdate,
         },
         {
             provide: APP_PIPE,

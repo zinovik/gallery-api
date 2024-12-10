@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
-import { AlbumModel, FileModel } from '../types';
-import { sortAlbums, sortFiles } from './helper/sort';
-import { getPublicFilenames } from './helper/access';
-import { performBatch } from './helper/batch';
+import { AlbumModel, FileModel } from '../common/album-file.types';
+import { sortAlbums, sortFiles } from './helper/sort.helper';
+import { getPublicFilenames } from './helper/access.helper';
+import { performBatch } from './helper/batch.helper';
 
 const URL_BATCH_SIZE = 100;
 const ACCESS_BATCH_SIZE = 200;

@@ -6,18 +6,20 @@ import {
     Body,
     UseGuards,
     Res,
+    Req,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
-import { Public } from '../common/public';
+import { Public } from '../common/public.decorator';
 import { UsersService } from '../users/users.service';
-
-const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+import { User } from '../common/user.type';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
     constructor(
+        private configService: ConfigService,
         private authService: AuthService,
         private userService: UsersService
     ) {}
@@ -29,6 +31,7 @@ export class AuthController {
         @Res({ passthrough: true }) response: Response,
         @Body() { token }: { token: string }
     ) {
+        const maxAge = this.configService.getOrThrow<number>('maxAge');
         const email = await this.authService.verifyAndDecodeGoogleToken(token);
         const user = await this.userService.findOne(email);
         const csrf = this.authService.generateCSRF(32);
@@ -37,14 +40,14 @@ export class AuthController {
             user.isEditAccess,
             user.accesses,
             csrf,
-            MAX_AGE
+            maxAge
         );
 
         response.cookie('access_token', accessToken, {
             httpOnly: true,
             sameSite: 'none',
             secure: true,
-            maxAge: MAX_AGE,
+            maxAge,
         });
 
         return { csrf };
@@ -53,8 +56,16 @@ export class AuthController {
     @UseGuards(AuthGuard)
     @HttpCode(HttpStatus.OK)
     @Post('logout')
-    async logout(@Res({ passthrough: true }) response: Response) {
+    async logout(
+        @Req() request: Request & { user?: User; token?: string },
+        @Res({ passthrough: true }) response: Response
+    ) {
         response.clearCookie('access_token');
+
+        if (request.token) {
+            await this.authService.updateInvalidated();
+            await this.authService.invalidateToken(request.token);
+        }
 
         return { success: true };
     }

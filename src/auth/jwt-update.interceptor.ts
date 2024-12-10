@@ -7,19 +7,22 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
-
-const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class JwtUpdate implements NestInterceptor {
-    constructor(private authService: AuthService) {}
+    constructor(
+        private configService: ConfigService,
+        private authService: AuthService
+    ) {}
 
     async intercept(
         context: ExecutionContext,
         next: CallHandler
-    ): Promise<Observable<any>> {
+    ): Promise<Observable<unknown>> {
+        const maxAge = this.configService.getOrThrow<number>('maxAge');
+
         const request = context.switchToHttp().getRequest();
-        const response = context.switchToHttp().getResponse();
 
         const accessToken = request['user']
             ? await this.authService.createAccessToken(
@@ -27,20 +30,20 @@ export class JwtUpdate implements NestInterceptor {
                   request['user'].isEditAccess,
                   request['user'].accesses,
                   request['user'].csrf,
-                  MAX_AGE
+                  maxAge
               )
             : null;
 
         return next.handle().pipe(
             tap(() => {
-                const request = context.switchToHttp().getRequest();
-
                 if (accessToken) {
+                    const response = context.switchToHttp().getResponse();
+
                     response.cookie('access_token', accessToken, {
                         httpOnly: true,
                         sameSite: 'none',
                         secure: true,
-                        maxAge: MAX_AGE,
+                        maxAge,
                     });
                 }
             })

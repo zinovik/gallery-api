@@ -1,13 +1,18 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
+import { AuthService } from './auth.service';
+import { User } from '../common/user.type';
 
 @Injectable()
 export class JwtToUserMiddleware implements NestMiddleware {
-    constructor(private jwtService: JwtService) {}
+    constructor(
+        private jwtService: JwtService,
+        private authService: AuthService
+    ) {}
 
     async use(
-        request: Request & { user: any },
+        request: Request & { user: User; token: string },
         _response: Response,
         next: NextFunction
     ) {
@@ -25,23 +30,26 @@ export class JwtToUserMiddleware implements NestMiddleware {
                     : process.env['JWT_SECRET'],
             });
 
-            const csrf = this.extractCSRFTokenFromHeader(request);
+            const csrf = request.headers.authorization;
 
             if (csrf !== payload.csrf) {
                 next();
                 return;
             }
 
+            await this.authService.updateInvalidated();
+            if (await this.authService.isInvalidated(token)) {
+                next();
+                return;
+            }
+
             request['user'] = payload;
+            request['token'] = token;
         } catch (error: unknown) {
             next();
             return;
         }
 
         next();
-    }
-
-    private extractCSRFTokenFromHeader(request: Request): string | undefined {
-        return request.headers.authorization;
     }
 }
