@@ -8,10 +8,13 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
+import { SHOULD_SKIP_JWT_UPDATE_INTERCEPTOR_KEY } from '../common/skip-jwt-update-interceptor.decorator';
 
 @Injectable()
-export class JwtUpdate implements NestInterceptor {
+export class JwtUpdateInterceptor implements NestInterceptor {
     constructor(
+        private reflector: Reflector,
         private configService: ConfigService,
         private authService: AuthService
     ) {}
@@ -20,6 +23,12 @@ export class JwtUpdate implements NestInterceptor {
         context: ExecutionContext,
         next: CallHandler
     ): Promise<Observable<unknown>> {
+        const shouldSkipJwtUpdateInterceptor =
+            this.reflector.getAllAndOverride<boolean>(
+                SHOULD_SKIP_JWT_UPDATE_INTERCEPTOR_KEY,
+                [context.getHandler(), context.getClass()]
+            );
+
         const maxAge = this.configService.getOrThrow<number>('maxAge');
 
         const request = context.switchToHttp().getRequest();
@@ -36,7 +45,7 @@ export class JwtUpdate implements NestInterceptor {
 
         return next.handle().pipe(
             tap(() => {
-                if (accessToken) {
+                if (!shouldSkipJwtUpdateInterceptor && accessToken) {
                     const response = context.switchToHttp().getResponse();
 
                     response.cookie('access_token', accessToken, {

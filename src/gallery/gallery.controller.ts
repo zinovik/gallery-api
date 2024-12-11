@@ -9,7 +9,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { Public } from '../common/public.decorator';
+import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
 import { Album, File, FileModel } from '../common/album-file.types';
 import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
@@ -18,10 +18,8 @@ import { GetService } from './get.service';
 import { EditService } from './edit.service';
 import { UtilsService } from './utils.service';
 import { EditInDto } from './dto/edit.in.dto';
-import { JwtUpdate } from '../auth/jwt-update.interceptor';
 
 @Controller()
-@UseInterceptors(JwtUpdate)
 export class GalleryController {
     constructor(
         private getService: GetService,
@@ -30,7 +28,7 @@ export class GalleryController {
     ) {}
 
     @Get('get/:mainPath?')
-    @Public()
+    @SkipAuthGuard()
     async get(
         @Req() request: Request & { user?: User; token?: string },
         @Query('home') home: string,
@@ -55,16 +53,16 @@ export class GalleryController {
 
     @Post('edit')
     @UseGuards(EditGuard)
-    async edit(@Body() body: EditInDto): Promise<{ result: string }> {
+    async edit(@Body() body: EditInDto): Promise<{ success: boolean }> {
         await this.editService.edit(body);
 
-        return { result: 'success' };
+        return { success: true };
     }
 
     // service accounts endpoints
 
     @Post('edit/update-file-accesses')
-    @Public() // to skip AuthGuard
+    @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
     async updateFileAccesses() {
         const { makePublicPaths, makePrivatePaths } =
@@ -74,18 +72,20 @@ export class GalleryController {
     }
 
     @Post('edit/update-sources-config')
-    @Public() // to skip AuthGuard
+    @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
-    async updateSourcesConfig() {
+    async updateSourcesConfig(): Promise<{ success: boolean }> {
         await this.utilsService.updateSourcesConfig();
 
         return { success: true };
     }
 
     @Post('edit/update-sort-albums-files')
-    @Public() // to skip AuthGuard
+    @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
-    async updateSortAlbumsFiles(@Body() { files }: { files: FileModel[] }) {
+    async updateSortAlbumsFiles(
+        @Body() { files }: { files: FileModel[] }
+    ): Promise<{ success: boolean }> {
         await this.utilsService.sortAndSaveAlbumsAndFiles(files);
 
         return { success: true };

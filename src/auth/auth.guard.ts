@@ -1,18 +1,19 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '../common/public.decorator';
+import { SHOULD_SKIP_AUTH_GUARD_KEY } from '../common/skip-auth-guard.decorator';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
     constructor(private reflector: Reflector) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const isPublic = this.reflector.getAllAndOverride<boolean>(
-            IS_PUBLIC_KEY,
-            [context.getHandler(), context.getClass()]
-        );
+        const shouldSkipAuthGuardKey =
+            this.reflector.getAllAndOverride<boolean>(
+                SHOULD_SKIP_AUTH_GUARD_KEY,
+                [context.getHandler(), context.getClass()]
+            );
 
-        if (isPublic) {
+        if (shouldSkipAuthGuardKey) {
             return true;
         }
 

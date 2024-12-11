@@ -38,8 +38,6 @@ export class GoogleAuthGuard implements CanActivate {
             return false;
         }
 
-        request['user'] = payload;
-
         return true;
     }
 }

@@ -3,10 +3,12 @@ import { GalleryModule } from './gallery/gallery.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtToUserMiddleware } from './auth/jwt-to-user.middleware';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
-import { LoggingInterceptor } from './global/logging.interceptor';
-import { HttpExceptionFilter } from './global/http-exception.filter';
+import { LoggingInterceptor } from './app/logging.interceptor';
+import { HttpExceptionFilter } from './app/http-exception.filter';
 import { ConfigModule } from '@nestjs/config';
-import configuration from './global/configuration';
+import configuration from './app/configuration';
+import { JwtService } from '@nestjs/jwt';
+import { JwtUpdateInterceptor } from './auth/jwt-update.interceptor';
 
 @Module({
     imports: [
@@ -22,6 +24,10 @@ import configuration from './global/configuration';
             useClass: LoggingInterceptor,
         },
         {
+            provide: APP_INTERCEPTOR,
+            useClass: JwtUpdateInterceptor,
+        },
+        {
             provide: APP_PIPE,
             useClass: ValidationPipe,
         },
@@ -29,6 +35,7 @@ import configuration from './global/configuration';
             provide: APP_FILTER,
             useClass: HttpExceptionFilter,
         },
+        JwtService,
     ],
 })
 export class AppModule {

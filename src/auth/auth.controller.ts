@@ -1,22 +1,14 @@
-import {
-    Controller,
-    Post,
-    HttpCode,
-    HttpStatus,
-    Body,
-    UseGuards,
-    Res,
-    Req,
-} from '@nestjs/common';
+import { Controller, Post, Body, Res, Req } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
-import { AuthGuard } from './auth.guard';
-import { Public } from '../common/public.decorator';
+import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
 import { UsersService } from '../users/users.service';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
+import { SkipJwtUpdateInterceptor } from '../common/skip-jwt-update-interceptor.decorator';
 
 @Controller('auth')
+@SkipJwtUpdateInterceptor()
 export class AuthController {
     constructor(
         private configService: ConfigService,
@@ -24,8 +16,7 @@ export class AuthController {
         private userService: UsersService
     ) {}
 
-    @Public()
-    @HttpCode(HttpStatus.OK)
+    @SkipAuthGuard()
     @Post('login')
     async login(
         @Res({ passthrough: true }) response: Response,
@@ -53,8 +44,6 @@ export class AuthController {
         return { csrf };
     }
 
-    @UseGuards(AuthGuard)
-    @HttpCode(HttpStatus.OK)
     @Post('logout')
     async logout(
         @Req() request: Request & { user?: User; token?: string },
