@@ -39,6 +39,7 @@ export class AuthController {
             sameSite: 'none',
             secure: true,
             maxAge,
+            partitioned: true,
         });
 
         return { csrf };
