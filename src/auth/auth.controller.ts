@@ -50,7 +50,12 @@ export class AuthController {
         @Req() request: Request & { user?: User; token?: string },
         @Res({ passthrough: true }) response: Response
     ) {
-        response.clearCookie('access_token');
+        response.clearCookie('access_token', {
+            httpOnly: true,
+            sameSite: 'none',
+            secure: true,
+            partitioned: true,
+        });
 
         if (request.token) {
             await this.authService.updateInvalidated();
