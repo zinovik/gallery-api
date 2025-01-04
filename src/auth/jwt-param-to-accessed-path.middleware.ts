@@ -1,24 +1,26 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
-import { AuthService } from './auth.service';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class JwtToUserMiddleware implements NestMiddleware {
+export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
     constructor(
         private jwtService: JwtService,
-        private authService: AuthService,
         private configService: ConfigService
     ) {}
 
     async use(
-        request: Request & { user: User; token: string },
+        request: Request & {
+            user?: User;
+            token?: string;
+            accessedPath?: string;
+        },
         _response: Response,
         next: NextFunction
     ) {
-        const token = request.cookies['access_token'];
+        const token = request.query['token'] as string;
 
         if (!token) {
             next();
@@ -30,21 +32,7 @@ export class JwtToUserMiddleware implements NestMiddleware {
                 secret: this.configService.getOrThrow<string>('jwtSecret'),
             });
 
-            const csrf = request.headers.authorization;
-
-            if (csrf !== payload.csrf) {
-                next();
-                return;
-            }
-
-            await this.authService.updateInvalidated();
-            if (await this.authService.isInvalidated(token)) {
-                next();
-                return;
-            }
-
-            request['user'] = payload;
-            request['token'] = token;
+            request['accessedPath'] = payload.path;
         } catch (error: unknown) {
             next();
             return;

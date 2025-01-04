@@ -7,7 +7,6 @@ import {
     Query,
     Req,
     UseGuards,
-    UseInterceptors,
 } from '@nestjs/common';
 import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
 import { Album, File, FileModel } from '../common/album-file.types';
@@ -30,7 +29,12 @@ export class GalleryController {
     @Get('get/:mainPath?')
     @SkipAuthGuard()
     async get(
-        @Req() request: Request & { user?: User; token?: string },
+        @Req()
+        request: Request & {
+            user?: User;
+            token?: string;
+            accessedPath?: string;
+        },
         @Query('home') home: string,
         @Param('mainPath') mainPath: string
     ): Promise<{
@@ -39,11 +43,13 @@ export class GalleryController {
         user?: User;
     }> {
         const userAccesses = request.user?.accesses || [];
+        const accessedPath = request.accessedPath || '';
 
         return {
             ...(await this.getService.get(
                 mainPath,
                 userAccesses,
+                accessedPath,
                 home === 'only',
                 home === 'include' || home === 'only'
             )),

@@ -10,6 +10,7 @@ export class GetService {
     async get(
         mainPath: string,
         userAccesses: string[],
+        accessedPath: string,
         isHomeOnly: boolean,
         isHomeInclude: boolean
     ): Promise<{
@@ -27,6 +28,7 @@ export class GetService {
         const accessibleAlbums = albums.filter((album) =>
             hasAccess(
                 userAccesses,
+                accessedPath,
                 album.accesses,
                 album.path,
                 albumAccessesSorted
@@ -37,6 +39,7 @@ export class GetService {
             .filter((file) =>
                 hasAccess(
                     userAccesses,
+                    accessedPath,
                     file.accesses,
                     file.path,
                     albumAccessesSorted

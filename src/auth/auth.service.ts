@@ -41,7 +41,7 @@ export class AuthService {
         let ticket: LoginTicket;
 
         try {
-            ticket = process.env.DEVELOPMENT
+            ticket = this.configService.getOrThrow<boolean>('isDevelopment')
                 ? ({
                       getPayload: () => ({ email: 'zinovik@gmail.com' }),
                   } as LoginTicket)
@@ -74,6 +74,10 @@ export class AuthService {
             },
             { expiresIn }
         );
+    }
+
+    async getSharedAlbumToken(path: string, expiresIn: string | number) {
+        return await this.jwtService.signAsync({ path }, { expiresIn });
     }
 
     async invalidateToken(token: string): Promise<void> {

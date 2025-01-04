@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Res, Req } from '@nestjs/common';
+import {
+    Controller,
+    Post,
+    Body,
+    Res,
+    Req,
+    UseGuards,
+    Get,
+    Param,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
@@ -6,6 +15,7 @@ import { UsersService } from '../users/users.service';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
 import { SkipJwtUpdateInterceptor } from '../common/skip-jwt-update-interceptor.decorator';
+import { EditGuard } from './edit.guard';
 
 @Controller('auth')
 @SkipJwtUpdateInterceptor()
@@ -43,6 +53,14 @@ export class AuthController {
         });
 
         return { csrf };
+    }
+
+    @Get('share/:path')
+    @UseGuards(EditGuard)
+    async share(@Param('path') path: string) {
+        const token = await this.authService.getSharedAlbumToken(path, '24h');
+
+        return { token };
     }
 
     @Post('logout')

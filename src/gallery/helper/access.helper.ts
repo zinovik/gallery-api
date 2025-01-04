@@ -18,10 +18,18 @@ export const getAlbumAccessesSorted = (albums: AlbumModel[]): AlbumAccess[] =>
 
 export const hasAccess = (
     userAccesses: string[],
+    accessedPath: string | '',
     targetAccesses: string[],
     path: string,
     albumAccessesSorted: AlbumAccess[]
 ) => {
+    if (
+        accessedPath &&
+        (path === accessedPath || path.startsWith(`${accessedPath}/`))
+    ) {
+        return true;
+    }
+
     const pathVariants = path
         .split('/')
         .map((_, i, pathParts) => pathParts.slice(0, i + 1).join('/'));
@@ -51,6 +59,7 @@ export const getPublicFilenames = (
         .filter((file) =>
             hasAccess(
                 userAccesses,
+                '',
                 file.accesses,
                 file.path,
                 albumAccessesSorted

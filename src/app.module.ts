@@ -9,6 +9,7 @@ import { ConfigModule } from '@nestjs/config';
 import configuration from './app/configuration';
 import { JwtService } from '@nestjs/jwt';
 import { JwtUpdateInterceptor } from './auth/jwt-update.interceptor';
+import { JwtParamToAccessedPathMiddleware } from './auth/jwt-param-to-accessed-path.middleware';
 
 @Module({
     imports: [
@@ -41,5 +42,6 @@ import { JwtUpdateInterceptor } from './auth/jwt-update.interceptor';
 export class AppModule {
     configure(consumer: MiddlewareConsumer) {
         consumer.apply(JwtToUserMiddleware).forRoutes('*');
+        consumer.apply(JwtParamToAccessedPathMiddleware).forRoutes('get/*');
     }
 }
