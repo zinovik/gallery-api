@@ -55,7 +55,7 @@ export class AuthController {
         return { csrf };
     }
 
-    @Get('share/:path')
+    @Get('share/:path(*)')
     @UseGuards(EditGuard)
     async share(@Param('path') path: string) {
         const token = await this.authService.getSharedAlbumToken(path, '24h');

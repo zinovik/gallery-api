@@ -25,7 +25,9 @@ export const hasAccess = (
 ) => {
     if (
         accessedPath &&
-        (path === accessedPath || path.startsWith(`${accessedPath}/`))
+        (path === accessedPath ||
+            path.startsWith(`${accessedPath}/`) ||
+            accessedPath.startsWith(`${path}/`))
     ) {
         return true;
     }
