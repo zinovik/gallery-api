@@ -4,13 +4,14 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
+import { Configuration } from '../app/configuration';
 
 @Injectable()
 export class JwtToUserMiddleware implements NestMiddleware {
     constructor(
         private jwtService: JwtService,
         private authService: AuthService,
-        private configService: ConfigService
+        private configService: ConfigService<Configuration, true>
     ) {}
 
     async use(
@@ -27,7 +28,9 @@ export class JwtToUserMiddleware implements NestMiddleware {
 
         try {
             const payload = await this.jwtService.verifyAsync(token, {
-                secret: this.configService.getOrThrow<string>('jwtSecret'),
+                secret: this.configService.getOrThrow('jwtSecret', {
+                    infer: true,
+                }),
             });
 
             const csrf = request.headers.authorization;

@@ -2,6 +2,7 @@ import { LoginTicket, OAuth2Client } from 'google-auth-library';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { Configuration } from '../app/configuration';
 
 const MOCK_DB: {
     invalidatedTokens: {
@@ -17,7 +18,7 @@ export class AuthService {
     private readonly client = new OAuth2Client();
 
     constructor(
-        private configService: ConfigService,
+        private configService: ConfigService<Configuration, true>,
         private jwtService: JwtService
     ) {}
 
@@ -37,11 +38,15 @@ export class AuthService {
     }
 
     async verifyAndDecodeGoogleToken(token: string): Promise<string> {
-        const clientId = this.configService.getOrThrow<string>('clientId');
+        const clientId = this.configService.getOrThrow('clientId', {
+            infer: true,
+        });
         let ticket: LoginTicket;
 
         try {
-            ticket = this.configService.getOrThrow<boolean>('isDevelopment')
+            ticket = this.configService.getOrThrow('isDevelopment', {
+                infer: true,
+            })
                 ? ({
                       getPayload: () => ({ email: 'zinovik@gmail.com' }),
                   } as LoginTicket)
@@ -94,7 +99,7 @@ export class AuthService {
     }
 
     async updateInvalidated(): Promise<void> {
-        const maxAge = this.configService.getOrThrow<number>('maxAge');
+        const maxAge = this.configService.getOrThrow('maxAge', { infer: true });
         const nowMinusMaxAge = new Date(Date.now() - maxAge);
 
         MOCK_DB.invalidatedTokens = MOCK_DB.invalidatedTokens.filter(

@@ -5,14 +5,13 @@ import { AppModule } from './app.module';
 import { json } from 'body-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Configuration } from './app/configuration';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
-    const configService = app.get(ConfigService);
+    const configService = app.get(ConfigService<Configuration, true>);
     app.enableCors({
-        origin: configService.getOrThrow('isDevelopment')
-            ? 'http://localhost:3000'
-            : 'https://zinovik.github.io',
+        origin: configService.getOrThrow('origin', { infer: true }),
         credentials: true,
     });
     app.use(json({ limit: '5mb' }));

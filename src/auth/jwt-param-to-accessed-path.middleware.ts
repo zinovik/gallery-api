@@ -3,12 +3,13 @@ import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
+import { Configuration } from '../app/configuration';
 
 @Injectable()
 export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
     constructor(
         private jwtService: JwtService,
-        private configService: ConfigService
+        private configService: ConfigService<Configuration, true>
     ) {}
 
     async use(
@@ -29,7 +30,9 @@ export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
 
         try {
             const payload = await this.jwtService.verifyAsync(token, {
-                secret: this.configService.getOrThrow<string>('jwtSecret'),
+                secret: this.configService.getOrThrow('jwtSecret', {
+                    infer: true,
+                }),
             });
 
             request['accessedPath'] = payload.path;

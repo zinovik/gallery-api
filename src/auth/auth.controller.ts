@@ -16,12 +16,13 @@ import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
 import { SkipJwtUpdateInterceptor } from '../common/skip-jwt-update-interceptor.decorator';
 import { EditGuard } from './edit.guard';
+import { Configuration } from '../app/configuration';
 
 @Controller('auth')
 @SkipJwtUpdateInterceptor()
 export class AuthController {
     constructor(
-        private configService: ConfigService,
+        private configService: ConfigService<Configuration, true>,
         private authService: AuthService,
         private userService: UsersService
     ) {}
@@ -32,7 +33,7 @@ export class AuthController {
         @Res({ passthrough: true }) response: Response,
         @Body() { token }: { token: string }
     ) {
-        const maxAge = this.configService.getOrThrow<number>('maxAge');
+        const maxAge = this.configService.getOrThrow('maxAge', { infer: true });
         const email = await this.authService.verifyAndDecodeGoogleToken(token);
         const user = await this.userService.findOne(email);
         const csrf = this.authService.generateCSRF(32);

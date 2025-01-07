@@ -10,12 +10,13 @@ import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { SHOULD_SKIP_JWT_UPDATE_INTERCEPTOR_KEY } from '../common/skip-jwt-update-interceptor.decorator';
+import { Configuration } from '../app/configuration';
 
 @Injectable()
 export class JwtUpdateInterceptor implements NestInterceptor {
     constructor(
         private reflector: Reflector,
-        private configService: ConfigService,
+        private configService: ConfigService<Configuration, true>,
         private authService: AuthService
     ) {}
 
@@ -29,7 +30,7 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                 [context.getHandler(), context.getClass()]
             );
 
-        const maxAge = this.configService.getOrThrow<number>('maxAge');
+        const maxAge = this.configService.getOrThrow('maxAge', { infer: true });
 
         const request = context.switchToHttp().getRequest();
 
