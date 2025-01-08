@@ -30,7 +30,7 @@ import { JwtParamToAccessedPathMiddleware } from './auth/jwt-param-to-accessed-p
         },
         {
             provide: APP_PIPE,
-            useClass: ValidationPipe,
+            useValue: new ValidationPipe({ transform: true }),
         },
         {
             provide: APP_FILTER,

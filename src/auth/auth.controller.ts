@@ -7,6 +7,7 @@ import {
     UseGuards,
     Get,
     Param,
+    Query,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -17,6 +18,7 @@ import { ConfigService } from '@nestjs/config';
 import { SkipJwtUpdateInterceptor } from '../common/skip-jwt-update-interceptor.decorator';
 import { EditGuard } from './edit.guard';
 import { Configuration } from '../app/configuration';
+import { ShareQueryInDto } from './dto/share.query.in.dto';
 
 @Controller('auth')
 @SkipJwtUpdateInterceptor()
@@ -58,8 +60,14 @@ export class AuthController {
 
     @Get('share/:path(*)')
     @UseGuards(EditGuard)
-    async share(@Param('path') path: string) {
-        const token = await this.authService.getSharedAlbumToken(path, '24h');
+    async share(
+        @Param('path') path: string,
+        @Query() { expires_in_h: expiresInH }: ShareQueryInDto
+    ) {
+        const token = await this.authService.getSharedAlbumToken(
+            path,
+            `${expiresInH}h`
+        );
 
         return { token };
     }

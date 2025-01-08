@@ -93,13 +93,11 @@ class UpdatedFileInDTO {
 
 class RemoveInDto {
     @ValidateNested()
-    @Type(() => RemovedAlbumInDTO)
     @IsOptional()
     @ApiProperty()
     albums?: RemovedAlbumInDTO[];
 
     @ValidateNested()
-    @Type(() => RemovedFileInDTO)
     @IsOptional()
     @ApiProperty()
     files?: RemovedFileInDTO[];
@@ -107,7 +105,6 @@ class RemoveInDto {
 
 class AddInDto {
     @ValidateNested()
-    @Type(() => AddedAlbumInDTO)
     @IsOptional()
     @ApiProperty()
     albums?: AddedAlbumInDTO[];
@@ -115,13 +112,11 @@ class AddInDto {
 
 class UpdateInDto {
     @ValidateNested()
-    @Type(() => UpdatedAlbumInDTO)
     @IsOptional()
     @ApiProperty()
     albums?: UpdatedAlbumInDTO[];
 
     @ValidateNested()
-    @Type(() => UpdatedFileInDTO)
     @IsOptional()
     @ApiProperty()
     files?: UpdatedFileInDTO[];
@@ -129,19 +124,16 @@ class UpdateInDto {
 
 export class EditInDto {
     @ValidateNested()
-    @Type(() => RemoveInDto)
     @IsOptional()
     @ApiProperty()
     remove?: RemoveInDto;
 
     @ValidateNested()
-    @Type(() => AddInDto)
     @IsOptional()
     @ApiProperty()
     add?: AddInDto;
 
     @ValidateNested()
-    @Type(() => UpdateInDto)
     @IsOptional()
     @ApiProperty()
     update?: UpdateInDto;
