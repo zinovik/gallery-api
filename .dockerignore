@@ -1,0 +1,11 @@
+.github
+dist
+node_modules
+.git
+.gcloudignore
+.gitignore
+.env
+.prettierrc.js
+jestconfig.json
+key-file.json
+README.md
