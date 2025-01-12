@@ -13,7 +13,6 @@ export interface FileModel {
     isNoThumbnail?: true;
     description?: string;
     text?: string | string[];
-    isVertical?: true;
     accesses?: string[];
 }
 
@@ -33,7 +32,6 @@ export interface File {
     isNoThumbnail?: true;
     description?: string;
     text?: string | string[];
-    isVertical?: true;
     url: string;
     accesses?: string[];
 }
