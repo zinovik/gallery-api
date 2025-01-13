@@ -119,6 +119,7 @@ export class EditService {
                     title: addedAlbum.title,
                     text: addedAlbum.text || undefined,
                     path: addedAlbum.path,
+                    accesses: addedAlbum.accesses,
                 }
             );
         });

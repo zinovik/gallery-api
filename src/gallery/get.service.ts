@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
-import { getAlbumAccessesSorted, hasAccess } from './helper/access.helper';
+import { hasAccess } from './helper/access.helper';
 import { Album, File } from '../common/album-file.types';
 
 @Injectable()
@@ -23,27 +23,13 @@ export class GetService {
             this.storageService.getSourcesConfig(),
         ]);
 
-        const albumAccessesSorted = getAlbumAccessesSorted(albums);
-
         const accessibleAlbums = albums.filter((album) =>
-            hasAccess(
-                userAccesses,
-                accessedPath,
-                album.accesses,
-                album.path,
-                albumAccessesSorted
-            )
+            hasAccess(userAccesses, album.accesses, album.path, accessedPath)
         );
 
         const accessibleFiles = filesWithoutUrls
             .filter((file) =>
-                hasAccess(
-                    userAccesses,
-                    accessedPath,
-                    file.accesses,
-                    file.path,
-                    albumAccessesSorted
-                )
+                hasAccess(userAccesses, file.accesses, file.path, accessedPath)
             )
             .map((file) => ({
                 ...file,

@@ -37,6 +37,10 @@ class AddedAlbumInDTO {
     @IsEnum(AddAlbumRelation)
     @ApiProperty()
     relation: AddAlbumRelation;
+
+    @IsString({ each: true })
+    @ApiProperty()
+    accesses: string[];
 }
 
 class UpdatedAlbumInDTO {

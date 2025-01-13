@@ -17,18 +17,16 @@ export class UtilsService {
         makePublicPaths: string[];
         makePrivatePaths: string[];
     }> {
-        const [filePaths, files, albums] = await Promise.all([
+        const [filePaths, files] = await Promise.all([
             this.storageService.getFilePaths(),
             this.storageService.getFiles(),
-            this.storageService.getAlbums(),
         ]);
 
         const filePathsIsPublic = await this.getFilePathsIsPublic(filePaths);
 
         const [makePublicPaths, makePrivatePaths] = this.getAccessesToUpdate(
             filePathsIsPublic,
-            files,
-            albums
+            files
         );
 
         console.log(makePublicPaths, makePrivatePaths);
@@ -66,10 +64,9 @@ export class UtilsService {
             filePath: string;
             isPublic: boolean;
         }[],
-        files: FileModel[],
-        albums: AlbumModel[]
+        files: FileModel[]
     ) {
-        const publicFilenamesFromJson = getPublicFilenames(files, albums);
+        const publicFilenamesFromJson = getPublicFilenames(files);
 
         const makePublicPaths: string[] = [];
         const makePrivatePaths: string[] = [];
@@ -116,13 +113,12 @@ export class UtilsService {
     }
 
     async updateSourcesConfig() {
-        const [filePaths, files, albums] = await Promise.all([
+        const [filePaths, files] = await Promise.all([
             this.storageService.getFilePaths(),
             this.storageService.getFiles(),
-            this.storageService.getAlbums(),
         ]);
 
-        const publicFilenames = getPublicFilenames(files, albums);
+        const publicFilenames = getPublicFilenames(files);
 
         const sources: {
             filename: string;
@@ -161,40 +157,10 @@ export class UtilsService {
     ): Promise<void> {
         const albums = albumsArg || (await this.storageService.getAlbums());
 
-        const albumsSorted = sortAlbums(
-            this.addNewAlbumsFromFiles(albums, files)
-        );
+        const albumsSorted = sortAlbums(albums);
         const filesSorted = sortFiles(files, albumsSorted);
 
         await this.storageService.saveAlbums(albumsSorted);
         await this.storageService.saveFiles(filesSorted);
-    }
-
-    private addNewAlbumsFromFiles(
-        albums: AlbumModel[],
-        files: FileModel[]
-    ): AlbumModel[] {
-        return [
-            ...albums,
-            ...[
-                ...new Set(
-                    files
-                        .filter(
-                            (file) =>
-                                !albums.some(
-                                    (album) => album.path === file.path
-                                )
-                        )
-                        .map((file) => file.path)
-                ),
-            ].map((path) => {
-                const [_, ...parts] = path.split('/');
-
-                return {
-                    title: parts.join('/'),
-                    path,
-                };
-            }),
-        ];
     }
 }

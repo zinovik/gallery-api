@@ -4,7 +4,7 @@ export interface AlbumModel {
     defaultByDate?: true;
     text?: string | string[];
     isSorted?: true;
-    accesses?: string[];
+    accesses: string[];
 }
 
 export interface FileModel {
@@ -13,7 +13,7 @@ export interface FileModel {
     isNoThumbnail?: true;
     description?: string;
     text?: string | string[];
-    accesses?: string[];
+    accesses: string[];
 }
 
 export interface Album {
@@ -23,7 +23,7 @@ export interface Album {
     defaultByDate?: true;
     text?: string | string[];
     isSorted?: true;
-    accesses?: string[];
+    accesses: string[];
 }
 
 export interface File {
@@ -33,7 +33,7 @@ export interface File {
     description?: string;
     text?: string | string[];
     url: string;
-    accesses?: string[];
+    accesses: string[];
 }
 
 export interface RemovedAlbum {
@@ -55,6 +55,7 @@ export interface AddedAlbum {
     text: string | string[];
     relatedPath: string;
     relation: AddAlbumRelation;
+    accesses: string[];
 }
 
 export interface UpdatedAlbum {
