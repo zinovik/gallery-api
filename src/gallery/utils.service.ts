@@ -157,8 +157,8 @@ export class UtilsService {
     ): Promise<void> {
         const albums = albumsArg || (await this.storageService.getAlbums());
 
-        const albumsSorted = sortAlbums(albums);
-        const filesSorted = sortFiles(files, albumsSorted);
+        const filesSorted = sortFiles(files);
+        const albumsSorted = sortAlbums(albums, filesSorted);
 
         await this.storageService.saveAlbums(albumsSorted);
         await this.storageService.saveFiles(filesSorted);

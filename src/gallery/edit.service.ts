@@ -52,9 +52,21 @@ export class EditService {
                 : []),
         ])) as [AlbumModel[], FileModel[]];
 
-        let mutableAlbumsUpdated = albumsOld;
+        let mutableFilesUpdated = filesOld;
 
         // TODO: Save in Promise.all
+
+        if (shouldRemoveFiles || shouldUpdateFiles) {
+            const filesWithoutRemoved = shouldRemoveFiles
+                ? this.removeFiles(filesOld, body.remove.files)
+                : filesOld;
+            const filesUpdated = shouldUpdateFiles
+                ? this.updateFiles(filesWithoutRemoved, body.update.files)
+                : filesWithoutRemoved;
+            mutableFilesUpdated = sortFiles(filesUpdated);
+
+            await this.storageService.saveFiles(mutableFilesUpdated);
+        }
 
         if (shouldRemoveAlbums || shouldAddAlbums || shouldUpdateAlbums) {
             const albumsWithoutRemoved = shouldRemoveAlbums
@@ -66,21 +78,9 @@ export class EditService {
             const albumsUpdated = shouldUpdateAlbums
                 ? this.updateAlbums(albumsWithAdded, body.update.albums)
                 : albumsWithAdded;
-            mutableAlbumsUpdated = sortAlbums(albumsUpdated);
+            const albumsSorted = sortAlbums(albumsUpdated, mutableFilesUpdated);
 
-            await this.storageService.saveAlbums(mutableAlbumsUpdated);
-        }
-
-        if (shouldRemoveFiles || shouldUpdateFiles) {
-            const filesWithoutRemoved = shouldRemoveFiles
-                ? this.removeFiles(filesOld, body.remove.files)
-                : filesOld;
-            const filesUpdated = shouldUpdateFiles
-                ? this.updateFiles(filesWithoutRemoved, body.update.files)
-                : filesWithoutRemoved;
-            const filesSorted = sortFiles(filesUpdated, mutableAlbumsUpdated);
-
-            await this.storageService.saveFiles(filesSorted);
+            await this.storageService.saveAlbums(albumsSorted);
         }
 
         return { result: 'success' };

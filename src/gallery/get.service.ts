@@ -52,32 +52,12 @@ export class GetService {
                           (mainPath && album.path.split('/')[0] === mainPath)
                   )
                 : accessibleAlbums
-            )
-                .map((album) => ({
-                    ...album,
-                    filesTemp: accessibleFiles.filter((file) =>
-                        this.isThisOrChildPath(file.path, album.path)
-                    ),
-                }))
-                .sort((album1, album2) => {
-                    if (album1.path.includes('/') || album2.path.includes('/'))
-                        return 0;
-
-                    const lastFileAlbum1 =
-                        album1.filesTemp.slice(-1)[0].filename;
-                    const lastFileAlbum2 =
-                        album2.filesTemp.slice(-1)[0].filename;
-
-                    return lastFileAlbum1.localeCompare(lastFileAlbum2);
-                })
-                .map((album) => {
-                    const { filesTemp, ...albumRest } = album;
-
-                    return {
-                        ...albumRest,
-                        filesAmount: album.filesTemp.length,
-                    };
-                }),
+            ).map((album) => ({
+                ...album,
+                filesAmount: accessibleFiles.filter((file) =>
+                    this.isThisOrChildPath(file.path, album.path)
+                ).length,
+            })),
         };
     }
 

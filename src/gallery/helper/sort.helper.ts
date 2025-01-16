@@ -1,33 +1,55 @@
 import { AlbumModel, FileModel } from '../../common/album-file.types';
 
-export const sortAlbums = (albums: AlbumModel[]): AlbumModel[] => {
-    const sortedAlbums = albums
+export const sortAlbums = (
+    albums: AlbumModel[],
+    files: FileModel[]
+): AlbumModel[] => {
+    const rootPathsWithSortedSubAlbums = albums
         .filter((album) => album.isSorted)
         .map((album) => album.path);
 
-    const topLevelAlbums = albums
-        .filter((album) => album.path.split('/').length === 1)
-        .map((album) => album.path);
+    const reversedFiles = [...files].reverse();
+
+    const topLevelPathsOrdered = albums
+        .filter((album) => !album.path.includes('/'))
+        .map((album) => album.path)
+        .sort((path1, path2) => {
+            const lastFilenameAlbum1 = reversedFiles.find(
+                (file) =>
+                    file.path === path1 || file.path.startsWith(`${path1}/`)
+            ).filename;
+            const lastFilenameAlbum2 = reversedFiles.find(
+                (file) =>
+                    file.path === path2 || file.path.startsWith(`${path2}/`)
+            ).filename;
+
+            return lastFilenameAlbum1.localeCompare(lastFilenameAlbum2);
+        });
 
     return [...albums].sort((a1, a2) => {
         const a1PathParts = a1.path.split('/');
         const a2PathParts = a2.path.split('/');
 
+        // root paths
         if (a1PathParts.length === 1 && a2PathParts.length === 1) {
-            return 0;
+            return (
+                topLevelPathsOrdered.indexOf(a1PathParts[0]) -
+                topLevelPathsOrdered.indexOf(a2PathParts[0])
+            );
         }
 
+        // albums from different root paths (one can be root, doesn't matter)
         if (a1PathParts[0] !== a2PathParts[0]) {
             return (
-                topLevelAlbums.indexOf(a1PathParts[0]) -
-                topLevelAlbums.indexOf(a2PathParts[0])
+                topLevelPathsOrdered.indexOf(a1PathParts[0]) -
+                topLevelPathsOrdered.indexOf(a2PathParts[0])
             );
         }
 
         // the same root path
 
-        // is sorted album
-        if (sortedAlbums.includes(a1PathParts[0])) {
+        // should sort sub albums
+        if (rootPathsWithSortedSubAlbums.includes(a1PathParts[0])) {
             if (a1PathParts.length === a2PathParts.length)
                 return a1.path.localeCompare(a2.path);
 
@@ -52,15 +74,6 @@ export const sortAlbums = (albums: AlbumModel[]): AlbumModel[] => {
     });
 };
 
-export const sortFiles = (
-    files: FileModel[],
-    albums: AlbumModel[]
-): FileModel[] => {
-    const albumPaths = albums.map((album) => album.path);
-
-    return [...files].sort((f1, f2) =>
-        f1.path.split('/')[0] === f2.path.split('/')[0] // the same root path
-            ? f1.filename.localeCompare(f2.filename)
-            : albumPaths.indexOf(f1.path) - albumPaths.indexOf(f2.path)
-    );
+export const sortFiles = (files: FileModel[]): FileModel[] => {
+    return [...files].sort((f1, f2) => f1.filename.localeCompare(f2.filename));
 };
