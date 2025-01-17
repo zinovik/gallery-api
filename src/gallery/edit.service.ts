@@ -40,14 +40,14 @@ export class EditService {
             body.update?.files && body.update.files.length > 0;
 
         const [albumsOld, filesOld] = (await Promise.all([
+            ...(shouldRemoveAlbums || shouldAddAlbums || shouldUpdateAlbums
+                ? [this.storageService.getAlbums()]
+                : []),
             ...(shouldRemoveAlbums ||
             shouldAddAlbums ||
             shouldUpdateAlbums ||
             shouldRemoveFiles ||
             shouldUpdateFiles
-                ? [this.storageService.getAlbums()]
-                : []),
-            ...(shouldRemoveFiles || shouldUpdateFiles
                 ? [this.storageService.getFiles()]
                 : []),
         ])) as [AlbumModel[], FileModel[]];
