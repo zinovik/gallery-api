@@ -2,7 +2,6 @@ import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsStringOrArrayOfStrings } from './is-string-or-array-of-strings.decorator';
-import { AddAlbumRelation } from '../../common/album-file.types';
 
 class RemovedAlbumInDTO {
     @IsString()
@@ -33,10 +32,6 @@ class AddedAlbumInDTO {
     @IsString()
     @ApiProperty()
     relatedPath: string;
-
-    @IsEnum(AddAlbumRelation)
-    @ApiProperty()
-    relation: AddAlbumRelation;
 
     @IsString({ each: true })
     @ApiProperty()

@@ -44,17 +44,11 @@ export interface RemovedFile {
     filename: string;
 }
 
-export enum AddAlbumRelation {
-    after = 'after',
-    before = 'before',
-}
-
 export interface AddedAlbum {
     path: string;
     title: string;
     text: string | string[];
     relatedPath: string;
-    relation: AddAlbumRelation;
     accesses: string[];
 }
 
