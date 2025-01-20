@@ -39,10 +39,7 @@ export class EditService {
         const shouldUpdateFiles =
             body.update?.files && body.update.files.length > 0;
 
-        const [albumsOld, filesOld] = (await Promise.all([
-            ...(shouldRemoveAlbums || shouldAddAlbums || shouldUpdateAlbums
-                ? [this.storageService.getAlbums()]
-                : []),
+        const [filesOld, albumsOld] = (await Promise.all([
             ...(shouldRemoveAlbums ||
             shouldAddAlbums ||
             shouldUpdateAlbums ||
@@ -50,7 +47,9 @@ export class EditService {
             shouldUpdateFiles
                 ? [this.storageService.getFiles()]
                 : []),
-        ])) as [AlbumModel[], FileModel[]];
+
+            this.storageService.getAlbums(),
+        ])) as [FileModel[], AlbumModel[]];
 
         let mutableFilesUpdated = filesOld;
 
@@ -58,8 +57,8 @@ export class EditService {
 
         if (shouldRemoveFiles || shouldUpdateFiles) {
             const filesWithoutRemoved = shouldRemoveFiles
-                ? this.removeFiles(filesOld, body.remove.files)
-                : filesOld;
+                ? this.removeFiles(mutableFilesUpdated, body.remove.files)
+                : mutableFilesUpdated;
             const filesUpdated = shouldUpdateFiles
                 ? this.updateFiles(filesWithoutRemoved, body.update.files)
                 : filesWithoutRemoved;
@@ -68,20 +67,18 @@ export class EditService {
             await this.storageService.saveFiles(mutableFilesUpdated);
         }
 
-        if (shouldRemoveAlbums || shouldAddAlbums || shouldUpdateAlbums) {
-            const albumsWithoutRemoved = shouldRemoveAlbums
-                ? this.removeAlbums(albumsOld, body.remove.albums)
-                : albumsOld;
-            const albumsWithAdded = shouldAddAlbums
-                ? this.addAlbums(albumsWithoutRemoved, body.add.albums)
-                : albumsWithoutRemoved;
-            const albumsUpdated = shouldUpdateAlbums
-                ? this.updateAlbums(albumsWithAdded, body.update.albums)
-                : albumsWithAdded;
-            const albumsSorted = sortAlbums(albumsUpdated, mutableFilesUpdated);
+        const albumsWithoutRemoved = shouldRemoveAlbums
+            ? this.removeAlbums(albumsOld, body.remove.albums)
+            : albumsOld;
+        const albumsWithAdded = shouldAddAlbums
+            ? this.addAlbums(albumsWithoutRemoved, body.add.albums)
+            : albumsWithoutRemoved;
+        const albumsUpdated = shouldUpdateAlbums
+            ? this.updateAlbums(albumsWithAdded, body.update.albums)
+            : albumsWithAdded;
+        const albumsSorted = sortAlbums(albumsUpdated, mutableFilesUpdated);
 
-            await this.storageService.saveAlbums(albumsSorted);
-        }
+        await this.storageService.saveAlbums(albumsSorted);
 
         return { result: 'success' };
     }

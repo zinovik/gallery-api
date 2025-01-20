@@ -17,13 +17,15 @@ export const sortAlbums = (
             const lastFilenameAlbum1 = reversedFiles.find(
                 (file) =>
                     file.path === path1 || file.path.startsWith(`${path1}/`)
-            ).filename;
+            )?.filename;
             const lastFilenameAlbum2 = reversedFiles.find(
                 (file) =>
                     file.path === path2 || file.path.startsWith(`${path2}/`)
-            ).filename;
+            )?.filename;
 
-            return lastFilenameAlbum1.localeCompare(lastFilenameAlbum2);
+            return lastFilenameAlbum1 && lastFilenameAlbum2
+                ? lastFilenameAlbum1.localeCompare(lastFilenameAlbum2)
+                : 0;
         });
 
     return [...albums].sort((a1, a2) => {
