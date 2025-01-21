@@ -139,6 +139,9 @@ export class EditService {
                       ...(updatedAlbum.text !== undefined
                           ? { text: updatedAlbum.text || undefined }
                           : {}),
+                      ...(updatedAlbum.order !== undefined
+                          ? { order: updatedAlbum.order || undefined }
+                          : {}),
                       ...(updatedAlbum.accesses !== undefined
                           ? {
                                 accesses:

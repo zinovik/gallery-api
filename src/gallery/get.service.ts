@@ -17,15 +17,11 @@ export class GetService {
         albums: Album[];
         files: File[];
     }> {
-        const [albums, filesWithoutUrls, sourcesConfig] = await Promise.all([
-            this.storageService.getAlbums(),
+        const [filesWithoutUrls, albums, sourcesConfig] = await Promise.all([
             this.storageService.getFiles(),
+            this.storageService.getAlbums(),
             this.storageService.getSourcesConfig(),
         ]);
-
-        const accessibleAlbums = albums.filter((album) =>
-            hasAccess(userAccesses, album.accesses, album.path, accessedPath)
-        );
 
         const accessibleFiles = filesWithoutUrls
             .filter((file) =>
@@ -35,6 +31,10 @@ export class GetService {
                 ...file,
                 url: sourcesConfig[file.filename] || file.filename,
             }));
+
+        const accessibleAlbums = albums.filter((album) =>
+            hasAccess(userAccesses, album.accesses, album.path, accessedPath)
+        );
 
         return {
             files: isHomeOnly

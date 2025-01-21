@@ -1,4 +1,10 @@
-import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+    IsEnum,
+    IsNumber,
+    IsOptional,
+    IsString,
+    ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsStringOrArrayOfStrings } from './is-string-or-array-of-strings.decorator';
@@ -57,6 +63,11 @@ class UpdatedAlbumInDTO {
     @IsOptional()
     @ApiProperty()
     text?: string | string[];
+
+    @IsNumber()
+    @IsOptional()
+    @ApiProperty()
+    order?: number;
 
     @IsString({ each: true })
     @IsOptional()

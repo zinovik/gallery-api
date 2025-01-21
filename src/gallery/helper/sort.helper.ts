@@ -4,8 +4,8 @@ export const sortAlbums = (
     albums: AlbumModel[],
     files: FileModel[]
 ): AlbumModel[] => {
-    const rootPathsWithSortedSubAlbums = albums
-        .filter((album) => album.isSorted)
+    const rootPathsWithNotSortedSubAlbums = albums
+        .filter((album) => album.isNotSorted)
         .map((album) => album.path);
 
     const reversedFiles = [...files].reverse();
@@ -50,8 +50,20 @@ export const sortAlbums = (
 
         // the same root path
 
+        if (
+            a1.path.includes('/') &&
+            a2.path.includes('/') &&
+            (a1.order !== undefined || a2.order !== undefined)
+        ) {
+            if (a2.order === undefined) return -1;
+            if (a1.order === undefined) return 1;
+
+            return a1.order - a2.order;
+        }
+
         // should sort sub albums
-        if (rootPathsWithSortedSubAlbums.includes(a1PathParts[0])) {
+        if (!rootPathsWithNotSortedSubAlbums.includes(a1PathParts[0])) {
+            // the condition will be re
             if (a1PathParts.length === a2PathParts.length)
                 return a1.path.localeCompare(a2.path);
 
@@ -76,6 +88,5 @@ export const sortAlbums = (
     });
 };
 
-export const sortFiles = (files: FileModel[]): FileModel[] => {
-    return [...files].sort((f1, f2) => f1.filename.localeCompare(f2.filename));
-};
+export const sortFiles = (files: FileModel[]): FileModel[] =>
+    [...files].sort((f1, f2) => f1.filename.localeCompare(f2.filename));
