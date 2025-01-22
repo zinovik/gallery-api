@@ -4,6 +4,7 @@ export const sortAlbums = (
     albums: AlbumModel[],
     files: FileModel[]
 ): AlbumModel[] => {
+    // will be removed
     const rootPathsWithNotSortedSubAlbums = albums
         .filter((album) => album.isNotSorted)
         .map((album) => album.path);
@@ -28,61 +29,55 @@ export const sortAlbums = (
                 : 0;
         });
 
+    const pathOrderMap: Record<string, number> = {};
+    albums.forEach((album) => {
+        if (album.order !== undefined) {
+            pathOrderMap[album.path] = album.order;
+        }
+    });
+
     return [...albums].sort((a1, a2) => {
         const a1PathParts = a1.path.split('/');
         const a2PathParts = a2.path.split('/');
 
-        // root paths
-        if (a1PathParts.length === 1 && a2PathParts.length === 1) {
+        // different root paths
+        if (a1PathParts[0] !== a2PathParts[0])
             return (
                 topLevelPathsOrdered.indexOf(a1PathParts[0]) -
                 topLevelPathsOrdered.indexOf(a2PathParts[0])
             );
-        }
-
-        // albums from different root paths (one can be root, doesn't matter)
-        if (a1PathParts[0] !== a2PathParts[0]) {
-            return (
-                topLevelPathsOrdered.indexOf(a1PathParts[0]) -
-                topLevelPathsOrdered.indexOf(a2PathParts[0])
-            );
-        }
 
         // the same root path
 
-        if (
-            a1.path.includes('/') &&
-            a2.path.includes('/') &&
-            (a1.order !== undefined || a2.order !== undefined)
-        ) {
-            if (a2.order === undefined) return -1;
-            if (a1.order === undefined) return 1;
+        // will be removed
+        if (rootPathsWithNotSortedSubAlbums.includes(a1PathParts[0])) return 0;
 
-            return a1.order - a2.order;
-        }
+        // sub albums sorting
+        const minPathParts = Math.min(a1PathParts.length, a2PathParts.length);
 
-        // should sort sub albums
-        if (!rootPathsWithNotSortedSubAlbums.includes(a1PathParts[0])) {
-            // the condition will be re
-            if (a1PathParts.length === a2PathParts.length)
-                return a1.path.localeCompare(a2.path);
+        for (let i = 1; i < minPathParts; i++) {
+            if (a1PathParts[i] !== a2PathParts[i]) {
+                // one is sub album of another
+                if (a1PathParts[i] === undefined) return -1;
+                if (a2PathParts[i] === undefined) return 1;
 
-            const minPathParts = Math.min(
-                a1PathParts.length,
-                a2PathParts.length
-            );
+                // sub albums of one album
+                const diffPath1Order =
+                    pathOrderMap[a1PathParts.slice(0, i + 1).join('/')];
+                const diffPath2Order =
+                    pathOrderMap[a2PathParts.slice(0, i + 1).join('/')];
 
-            for (let i = 0; i < minPathParts; i++) {
-                if (a1PathParts[i] !== a2PathParts[i]) {
-                    if (a1PathParts[i] === undefined) return -1;
-                    if (a2PathParts[i] === undefined) return 1;
-                    return a1PathParts[i].localeCompare(a2PathParts[i]);
+                if (diffPath1Order || diffPath2Order) {
+                    if (diffPath2Order === undefined) return -1;
+                    if (diffPath1Order === undefined) return 1;
+
+                    return diffPath1Order - diffPath2Order;
                 }
+
+                // alphabetical order otherwise
+                return a1PathParts[i].localeCompare(a2PathParts[i]);
             }
         }
-
-        if (a2.path.includes(a1.path)) return -1;
-        if (a1.path.includes(a2.path)) return 1;
 
         return 0;
     });
