@@ -3,9 +3,8 @@ export interface AlbumModel {
     title: string;
     defaultByDate?: true;
     text?: string | string[];
-    isNotSorted?: true; // will be removed
-    order?: number;
     accesses: string[];
+    order?: number;
 }
 
 export interface FileModel {
@@ -23,8 +22,8 @@ export interface Album {
     filesAmount: number;
     defaultByDate?: true;
     text?: string | string[];
-    order?: number;
     accesses: string[];
+    order?: number;
 }
 
 export interface File {
@@ -58,8 +57,8 @@ export interface UpdatedAlbum {
     newPath?: string;
     title?: string;
     text?: string | string[];
-    order?: number;
     accesses?: string[];
+    order?: number;
 }
 
 export interface UpdatedFile {

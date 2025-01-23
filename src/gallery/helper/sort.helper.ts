@@ -4,11 +4,6 @@ export const sortAlbums = (
     albums: AlbumModel[],
     files: FileModel[]
 ): AlbumModel[] => {
-    // will be removed
-    const rootPathsWithNotSortedSubAlbums = albums
-        .filter((album) => album.isNotSorted)
-        .map((album) => album.path);
-
     const reversedFiles = [...files].reverse();
 
     const topLevelPathsOrdered = albums
@@ -48,9 +43,6 @@ export const sortAlbums = (
             );
 
         // the same root path
-
-        // will be removed
-        if (rootPathsWithNotSortedSubAlbums.includes(a1PathParts[0])) return 0;
 
         // sub albums sorting
         const minPathParts = Math.min(a1PathParts.length, a2PathParts.length);
