@@ -48,7 +48,6 @@ export interface AddedAlbum {
     path: string;
     title: string;
     text: string | string[];
-    relatedPath: string;
     accesses: string[];
 }
 

@@ -35,10 +35,6 @@ class AddedAlbumInDTO {
     @ApiProperty()
     text: string | string[];
 
-    @IsString()
-    @ApiProperty()
-    relatedPath: string;
-
     @IsString({ each: true })
     @ApiProperty()
     accesses: string[];
