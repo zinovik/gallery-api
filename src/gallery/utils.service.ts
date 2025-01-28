@@ -131,9 +131,10 @@ export class UtilsService {
                 );
 
                 return {
-                    url: publicFilenames.includes(file.filename)
-                        ? `${PUBLIC_URL}/${filePath}`
-                        : await this.storageService.getSignedUrl(filePath),
+                    url:
+                        publicFilenames.includes(file.filename) || !filePath
+                            ? `${PUBLIC_URL}/${filePath}`
+                            : await this.storageService.getSignedUrl(filePath),
                     filename: file.filename,
                 };
             },

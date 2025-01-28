@@ -138,10 +138,7 @@ export class EditService {
                           : {}),
                       ...(updatedAlbum.accesses !== undefined
                           ? {
-                                accesses:
-                                    updatedAlbum.accesses.length > 0
-                                        ? updatedAlbum.accesses // TODO: Update real isPublic
-                                        : undefined,
+                                accesses: updatedAlbum.accesses, // TODO: Update real isPublic,
                             }
                           : {}),
                   }
@@ -182,10 +179,7 @@ export class EditService {
                           : {}),
                       ...(updatedFile.accesses !== undefined
                           ? {
-                                accesses:
-                                    updatedFile.accesses.length > 0
-                                        ? updatedFile.accesses // TODO: Update real isPublic
-                                        : undefined,
+                                accesses: updatedFile.accesses, // TODO: Update real isPublic,
                             }
                           : {}),
                   }
