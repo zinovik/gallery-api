@@ -12,7 +12,7 @@ export class LoggingInterceptor implements NestInterceptor {
         const now = Date.now();
 
         console.log(
-            `[${now}] request started | email: ${request.user?.email} | url: ${
+            `[${now}] user: ${request.user?.email} | url: ${
                 request.url
             } | body: ${JSON.stringify(request.body)}`
         );
