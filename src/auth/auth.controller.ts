@@ -19,6 +19,7 @@ import { SkipJwtUpdateInterceptor } from '../common/skip-jwt-update-interceptor.
 import { EditGuard } from './edit.guard';
 import { Configuration } from '../app/configuration';
 import { ShareQueryInDto } from './dto/share.query.in.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Controller('auth')
 @SkipJwtUpdateInterceptor()
@@ -26,6 +27,7 @@ export class AuthController {
     constructor(
         private configService: ConfigService<Configuration, true>,
         private authService: AuthService,
+        private jwtService: JwtService,
         private userService: UsersService
     ) {}
 
@@ -55,7 +57,14 @@ export class AuthController {
             partitioned: true,
         });
 
-        return { csrf };
+        return {
+            csrf,
+            user: await this.jwtService.verifyAsync(accessToken, {
+                secret: this.configService.getOrThrow('jwtSecret', {
+                    infer: true,
+                }),
+            }),
+        };
     }
 
     @Get('share/:path(*)')
