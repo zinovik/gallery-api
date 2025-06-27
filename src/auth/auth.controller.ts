@@ -67,7 +67,7 @@ export class AuthController {
         };
     }
 
-    @Get('share/:path(*)')
+    @Get('share/*path')
     @UseGuards(EditGuard)
     async share(
         @Param('path') path: string,

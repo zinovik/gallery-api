@@ -26,7 +26,7 @@ export class GalleryController {
         private utilsService: UtilsService
     ) {}
 
-    @Get('get/:mainPath?')
+    @Get(['get', 'get/:mainPath'])
     @SkipAuthGuard()
     async get(
         @Req()
