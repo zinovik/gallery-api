@@ -42,6 +42,7 @@ import { JwtParamToAccessedPathMiddleware } from './auth/jwt-param-to-accessed-p
 export class AppModule {
     configure(consumer: MiddlewareConsumer) {
         consumer.apply(JwtToUserMiddleware).forRoutes('*');
-        consumer.apply(JwtParamToAccessedPathMiddleware).forRoutes('get/*');
+        consumer.apply(JwtParamToAccessedPathMiddleware).forRoutes('get');
+        consumer.apply(JwtParamToAccessedPathMiddleware).forRoutes('get/*path');
     }
 }

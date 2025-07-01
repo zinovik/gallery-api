@@ -26,7 +26,7 @@ export class GalleryController {
         private utilsService: UtilsService
     ) {}
 
-    @Get(['get', 'get/:mainPath'])
+    @Get(['get', 'get/*path'])
     @SkipAuthGuard()
     async get(
         @Req()
@@ -36,7 +36,8 @@ export class GalleryController {
             accessedPath?: string;
         },
         @Query('home') home: string,
-        @Param('mainPath') mainPath: string
+        @Query('date-ranges') dateRanges: string,
+        @Param('path') path?: string | undefined
     ): Promise<{
         albums: Album[];
         files: File[];
@@ -47,11 +48,12 @@ export class GalleryController {
 
         return {
             ...(await this.getService.get(
-                mainPath,
+                (path || '').replace(/,/g, '/'),
                 userAccesses,
                 accessedPath,
                 home === 'only',
-                home === 'include' || home === 'only'
+                home === 'include',
+                dateRanges?.split(',').map((dateRange) => dateRange.split('-'))
             )),
             user: request.user,
         };
