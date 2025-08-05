@@ -48,7 +48,8 @@ export class GetService {
                       (album) =>
                           ((isHomeInclude || isHomeOnly) &&
                               this.isTopLevelPath(album.path)) ||
-                          (path && this.isThisOrChildPath(album.path, path))
+                          (path &&
+                              this.isThisOrChildOrParentPath(album.path, path))
                   )
                 : accessibleAlbums
             ).map((album) => ({
@@ -66,9 +67,21 @@ export class GetService {
         return !path.includes('/');
     }
 
-    private isThisOrChildPath(childPath: string, parentPath: string) {
+    private isThisOrChildPath(currentItemPath: string, requiredPath: string) {
         return (
-            childPath === parentPath || childPath.startsWith(`${parentPath}/`)
+            currentItemPath === requiredPath ||
+            currentItemPath.startsWith(`${requiredPath}/`)
+        );
+    }
+
+    private isThisOrChildOrParentPath(
+        currentItemPath: string,
+        requiredPath: string
+    ) {
+        return (
+            currentItemPath === requiredPath ||
+            currentItemPath.startsWith(`${requiredPath}/`) ||
+            requiredPath.startsWith(`${currentItemPath}/`)
         );
     }
 
