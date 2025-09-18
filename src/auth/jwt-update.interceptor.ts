@@ -54,7 +54,7 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                         sameSite: 'none',
                         secure: true,
                         maxAge,
-                        partitioned: true,
+                        // partitioned: true,
                     });
                 }
             })

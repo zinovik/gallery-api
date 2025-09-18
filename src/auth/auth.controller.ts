@@ -54,7 +54,7 @@ export class AuthController {
             sameSite: 'none',
             secure: true,
             maxAge,
-            partitioned: true,
+            // partitioned: true,
         });
 
         return {
@@ -90,7 +90,7 @@ export class AuthController {
             httpOnly: true,
             sameSite: 'none',
             secure: true,
-            partitioned: true,
+            // partitioned: true,
         });
 
         if (request.token) {
