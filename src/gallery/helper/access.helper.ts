@@ -22,7 +22,7 @@ export const hasAccess = (
         userAccesses.includes(ACCESS_ADMIN) ||
         targetAccesses.includes(ACCESS_PUBLIC) ||
         (targetAccesses.length > 0 &&
-            targetAccesses.every((access) => userAccesses.includes(access)))
+            targetAccesses.some((access) => userAccesses.includes(access)))
     );
 };
 
