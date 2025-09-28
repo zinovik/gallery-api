@@ -14,7 +14,9 @@ export class LoggingInterceptor implements NestInterceptor {
         console.log(
             `[${now}] user: ${request.user?.email} | url: ${
                 request.url
-            } | body: ${JSON.stringify(request.body)}`
+            } | body: ${JSON.stringify(request.body)} | user-agent: ${
+                request.headers['user-agent']
+            }`
         );
 
         return next
