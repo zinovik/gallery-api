@@ -82,7 +82,7 @@ export class AuthController {
         @Query() { expires_in_h: expiresInH }: ShareQueryInDto
     ) {
         const token = await this.authService.getSharedAlbumToken(
-            path,
+            path.replace(/,/g, '/'),
             `${expiresInH}h`
         );
 
