@@ -68,7 +68,7 @@ export class AuthService {
         isEditAccess: boolean,
         accesses: string[],
         csrf: string,
-        expiresIn: string | number
+        expiresIn: number
     ): Promise<string> {
         return await this.jwtService.signAsync(
             {
@@ -81,7 +81,7 @@ export class AuthService {
         );
     }
 
-    async getSharedAlbumToken(path: string, expiresIn: string | number) {
+    async getSharedAlbumToken(path: string, expiresIn: number) {
         return await this.jwtService.signAsync({ path }, { expiresIn });
     }
 

@@ -1,4 +1,4 @@
-FROM node:22-slim as builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -10,11 +10,11 @@ COPY src ./src
 COPY tsconfig.json ./
 RUN npm run build
 
-RUN npm prune --omit=dev
+RUN npm prune --production
 
 ###
 
-FROM node:22-slim
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -27,4 +27,4 @@ COPY --from=builder /app/src ./src
 
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["node", "dist/main.js"]
