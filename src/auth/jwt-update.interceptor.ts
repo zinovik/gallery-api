@@ -11,7 +11,6 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { SHOULD_SKIP_JWT_UPDATE_INTERCEPTOR_KEY } from '../common/skip-jwt-update-interceptor.decorator';
 import { Configuration } from '../app/configuration';
-import { checkIsCookieRestrictedBrowser } from './check-is-cookie-restricted-browser';
 
 @Injectable()
 export class JwtUpdateInterceptor implements NestInterceptor {
@@ -40,7 +39,6 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                   request['user'].email,
                   request['user'].isEditAccess,
                   request['user'].accesses,
-                  request['user'].csrf,
                   maxAge
               )
             : null;
@@ -50,21 +48,16 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                 if (!shouldSkipJwtUpdateInterceptor && accessToken) {
                     const response = context.switchToHttp().getResponse();
 
-                    if (
-                        checkIsCookieRestrictedBrowser(
-                            request.headers['user-agent']
-                        )
-                    ) {
-                        return { ...responseBody, accessToken };
-                    } else {
-                        response.cookie('access_token', accessToken, {
-                            httpOnly: true,
-                            sameSite: 'none',
-                            secure: true,
-                            maxAge,
-                            partitioned: true,
-                        });
-                    }
+                    // DEPRECATED
+                    response.cookie('access_token', accessToken, {
+                        httpOnly: true,
+                        sameSite: 'none',
+                        secure: true,
+                        maxAge,
+                        partitioned: true,
+                    });
+
+                    return { ...responseBody, accessToken };
                 }
 
                 return responseBody;

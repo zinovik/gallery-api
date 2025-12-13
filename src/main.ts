@@ -1,4 +1,4 @@
-import cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser'; // DEPRECATED
 import compression from 'compression';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -15,7 +15,7 @@ async function bootstrap() {
         credentials: true,
     });
     app.use(json({ limit: '5mb' }));
-    app.use(cookieParser());
+    app.use(cookieParser()); // DEPRECATED
     app.use(compression());
 
     const config = new DocumentBuilder()

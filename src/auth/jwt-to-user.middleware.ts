@@ -5,7 +5,6 @@ import { AuthService } from './auth.service';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
 import { Configuration } from '../app/configuration';
-import { checkIsCookieRestrictedBrowser } from './check-is-cookie-restricted-browser';
 
 @Injectable()
 export class JwtToUserMiddleware implements NestMiddleware {
@@ -20,13 +19,12 @@ export class JwtToUserMiddleware implements NestMiddleware {
         _response: Response,
         next: NextFunction
     ) {
-        const isCookieRestrictedBrowser = checkIsCookieRestrictedBrowser(
-            request.headers['user-agent']
-        );
-
-        const token = isCookieRestrictedBrowser
-            ? request.headers['authorization'].split(' ')[1]
-            : request.cookies['access_token'];
+        const token =
+            request.headers['authorization'] &&
+            request.headers['authorization'].split(' ')[1] &&
+            request.headers['authorization'].split(' ')[1].length > 100
+                ? request.headers['authorization'].split(' ')[1]
+                : request.cookies['access_token']; // DEPRECATED
 
         if (!token) {
             next();
@@ -39,15 +37,6 @@ export class JwtToUserMiddleware implements NestMiddleware {
                     infer: true,
                 }),
             });
-
-            if (!isCookieRestrictedBrowser) {
-                const csrf = request.headers.authorization;
-
-                if (csrf !== payload.csrf) {
-                    next();
-                    return;
-                }
-            }
 
             await this.authService.updateInvalidated();
             if (await this.authService.isInvalidated(token)) {

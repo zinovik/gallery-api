@@ -20,7 +20,6 @@ import { EditGuard } from './edit.guard';
 import { Configuration } from '../app/configuration';
 import { ShareQueryInDto } from './dto/share.query.in.dto';
 import { JwtService } from '@nestjs/jwt';
-import { checkIsCookieRestrictedBrowser } from './check-is-cookie-restricted-browser';
 
 @Controller('auth')
 @SkipJwtUpdateInterceptor()
@@ -35,38 +34,31 @@ export class AuthController {
     @SkipAuthGuard()
     @Post('login')
     async login(
-        @Req() request: Request,
+        @Req() _request: Request,
         @Res({ passthrough: true }) response: Response,
         @Body() { token }: { token: string }
     ) {
         const maxAge = this.configService.getOrThrow('maxAge', { infer: true });
         const email = await this.authService.verifyAndDecodeGoogleToken(token);
         const user = await this.userService.findOne(email);
-        const csrf = this.authService.generateCSRF(32);
         const accessToken = await this.authService.createAccessToken(
             user.email,
             user.isEditAccess,
             user.accesses,
-            csrf,
             maxAge
         );
 
-        const isCookieRestrictedBrowser = checkIsCookieRestrictedBrowser(
-            request.headers['user-agent']
-        );
-
-        if (!isCookieRestrictedBrowser) {
-            response.cookie('access_token', accessToken, {
-                httpOnly: true,
-                sameSite: 'none',
-                secure: true,
-                maxAge,
-                partitioned: true,
-            });
-        }
+        // DEPRECATED
+        response.cookie('access_token', accessToken, {
+            httpOnly: true,
+            sameSite: 'none',
+            secure: true,
+            maxAge,
+            partitioned: true,
+        });
 
         return {
-            ...(isCookieRestrictedBrowser ? { accessToken } : { csrf }),
+            accessToken,
             user: await this.jwtService.verifyAsync(accessToken, {
                 secret: this.configService.getOrThrow('jwtSecret', {
                     infer: true,
@@ -94,18 +86,13 @@ export class AuthController {
         @Req() request: Request & { user?: User; token?: string },
         @Res({ passthrough: true }) response: Response
     ) {
-        const isCookieRestrictedBrowser = checkIsCookieRestrictedBrowser(
-            request.headers['user-agent']
-        );
-
-        if (!isCookieRestrictedBrowser) {
-            response.clearCookie('access_token', {
-                httpOnly: true,
-                sameSite: 'none',
-                secure: true,
-                partitioned: true,
-            });
-        }
+        // DEPRECATED
+        response.clearCookie('access_token', {
+            httpOnly: true,
+            sameSite: 'none',
+            secure: true,
+            partitioned: true,
+        });
 
         if (request.token) {
             await this.authService.updateInvalidated();

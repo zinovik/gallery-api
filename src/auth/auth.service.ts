@@ -22,21 +22,6 @@ export class AuthService {
         private jwtService: JwtService
     ) {}
 
-    generateCSRF(length: number) {
-        let result = '';
-
-        const characters =
-            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-        while (result.length < length) {
-            result += characters.charAt(
-                Math.floor(Math.random() * characters.length)
-            );
-        }
-
-        return result;
-    }
-
     async verifyAndDecodeGoogleToken(token: string): Promise<string> {
         const clientId = this.configService.getOrThrow('clientId', {
             infer: true,
@@ -67,7 +52,6 @@ export class AuthService {
         email: string,
         isEditAccess: boolean,
         accesses: string[],
-        csrf: string,
         expiresIn: number
     ): Promise<string> {
         return await this.jwtService.signAsync(
@@ -75,7 +59,6 @@ export class AuthService {
                 email,
                 isEditAccess,
                 accesses,
-                csrf,
             },
             { expiresIn }
         );
