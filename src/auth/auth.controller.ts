@@ -61,7 +61,6 @@ export class AuthController {
         response.setHeader('Access-Token', accessToken);
 
         return {
-            accessToken, // DEPRECATED
             user: await this.jwtService.verifyAsync(accessToken, {
                 secret: this.configService.getOrThrow('jwtSecret', {
                     infer: true,
