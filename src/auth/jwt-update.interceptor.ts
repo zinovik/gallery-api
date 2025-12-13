@@ -57,7 +57,10 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                         partitioned: true,
                     });
 
-                    return { ...responseBody, accessToken };
+                    response.setHeader('Access-Control-Expose-Headers', 'Access-Token');
+                    response.setHeader('Access-Token', accessToken);
+
+                    return { ...responseBody, accessToken }; // DEPRECATED
                 }
 
                 return responseBody;

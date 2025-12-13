@@ -57,8 +57,11 @@ export class AuthController {
             partitioned: true,
         });
 
+        response.setHeader('Access-Control-Expose-Headers', 'Access-Token');
+        response.setHeader('Access-Token', accessToken);
+
         return {
-            accessToken,
+            accessToken, // DEPRECATED
             user: await this.jwtService.verifyAsync(accessToken, {
                 secret: this.configService.getOrThrow('jwtSecret', {
                     infer: true,
