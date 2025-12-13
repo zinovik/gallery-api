@@ -9,7 +9,7 @@ export interface Configuration {
 const configuration: Configuration = {
     isDevelopment: Boolean(process.env['DEVELOPMENT']),
     origin: process.env['DEVELOPMENT']
-        ? 'http://localhost:3000'
+        ? 'http://localhost:5173'
         : 'https://zinovik.github.io',
     maxAge: parseInt(process.env['MAX_AGE'], 10) || 30 * 24 * 60 * 60 * 1000, // 30 days
     clientId:
