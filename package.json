@@ -27,7 +27,6 @@
         "class-transformer": "0.5.1",
         "class-validator": "0.14.3",
         "compression": "1.8.1",
-        "cookie-parser": "1.4.7",
         "google-auth-library": "10.5.0",
         "reflect-metadata": "0.2.2",
         "rxjs": "7.8.2"
@@ -37,11 +36,10 @@
         "@nestjs/testing": "11.1.9",
         "@types/body-parser": "1.19.6",
         "@types/compression": "1.8.1",
-        "@types/cookie-parser": "1.4.10",
         "@types/express": "5.0.6",
         "@types/jest": "30.0.0",
         "@types/node": "25.0.1",
-        "eslint": "9.39.1",
+        "eslint": "9.39.2",
         "jest": "30.2.0",
         "ts-jest": "29.4.6",
         "typescript": "5.9.3"

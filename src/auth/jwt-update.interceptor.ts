@@ -39,6 +39,8 @@ export class JwtUpdateInterceptor implements NestInterceptor {
                   request['user'].email,
                   request['user'].isEditAccess,
                   request['user'].accesses,
+                  request['user'].sessionId ??
+                      Math.floor(Math.random() * 10000),
                   maxAge
               )
             : null;
@@ -47,15 +49,6 @@ export class JwtUpdateInterceptor implements NestInterceptor {
             map((responseBody) => {
                 if (!shouldSkipJwtUpdateInterceptor && accessToken) {
                     const response = context.switchToHttp().getResponse();
-
-                    // DEPRECATED
-                    response.cookie('access_token', accessToken, {
-                        httpOnly: true,
-                        sameSite: 'none',
-                        secure: true,
-                        maxAge,
-                        partitioned: true,
-                    });
 
                     response.setHeader(
                         'Access-Control-Expose-Headers',

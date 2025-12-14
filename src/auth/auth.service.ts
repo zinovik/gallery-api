@@ -52,6 +52,7 @@ export class AuthService {
         email: string,
         isEditAccess: boolean,
         accesses: string[],
+        sessionId: number,
         expiresIn: number
     ): Promise<string> {
         return await this.jwtService.signAsync(
@@ -59,6 +60,7 @@ export class AuthService {
                 email,
                 isEditAccess,
                 accesses,
+                sessionId,
             },
             { expiresIn }
         );

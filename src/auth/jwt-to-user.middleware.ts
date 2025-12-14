@@ -19,12 +19,7 @@ export class JwtToUserMiddleware implements NestMiddleware {
         _response: Response,
         next: NextFunction
     ) {
-        const token =
-            request.headers['authorization'] &&
-            request.headers['authorization'].split(' ')[1] &&
-            request.headers['authorization'].split(' ')[1].length > 100
-                ? request.headers['authorization'].split(' ')[1]
-                : request.cookies['access_token']; // DEPRECATED
+        const token = request.headers['authorization']?.split(' ')[1];
 
         if (!token) {
             next();

@@ -45,17 +45,9 @@ export class AuthController {
             user.email,
             user.isEditAccess,
             user.accesses,
+            Math.floor(Math.random() * 10000),
             maxAge
         );
-
-        // DEPRECATED
-        response.cookie('access_token', accessToken, {
-            httpOnly: true,
-            sameSite: 'none',
-            secure: true,
-            maxAge,
-            partitioned: true,
-        });
 
         response.setHeader('Access-Control-Expose-Headers', 'Access-Token');
         response.setHeader('Access-Token', accessToken);
@@ -88,14 +80,6 @@ export class AuthController {
         @Req() request: Request & { user?: User; token?: string },
         @Res({ passthrough: true }) response: Response
     ) {
-        // DEPRECATED
-        response.clearCookie('access_token', {
-            httpOnly: true,
-            sameSite: 'none',
-            secure: true,
-            partitioned: true,
-        });
-
         if (request.token) {
             await this.authService.updateInvalidated();
             await this.authService.invalidateToken(request.token);
