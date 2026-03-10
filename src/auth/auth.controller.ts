@@ -69,7 +69,7 @@ export class AuthController {
     ) {
         const token = await this.authService.getSharedAlbumToken(
             path.replace(/,/g, '/'),
-            expiresInH * 60 * 60 * 1000
+            expiresInH * 60 * 60
         );
 
         return { token };
