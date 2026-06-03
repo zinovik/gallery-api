@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 
 const ALLOWED_SERVICE_ACCOUNTS = [
-    'gallery@zinovik-project.iam.gserviceaccount.com',
+    'cloud-scheduler-invoker@zinovik-gallery.iam.gserviceaccount.com',
     'storage-tools@zinovik-project.iam.gserviceaccount.com',
 ];
 

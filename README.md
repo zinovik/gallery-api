@@ -1,4 +1,4 @@
-[gallery-api-306312319198.europe-central2.run.app](https://gallery-api-306312319198.europe-central2.run.app)
+[gallery-api-278546267214.europe-central2.run.app](https://gallery-api-278546267214.europe-central2.run.app)
 
 ## google cloud setup
 
