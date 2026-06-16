@@ -67,27 +67,6 @@ export class GalleryController {
         return { success: true };
     }
 
-    // service accounts endpoints
-
-    @Post('edit/update-file-accesses')
-    @SkipAuthGuard()
-    @UseGuards(GoogleAuthGuard)
-    async updateFileAccesses() {
-        const { makePublicPaths, makePrivatePaths } =
-            await this.utilsService.updateFileAccesses();
-
-        return { success: true, makePublicPaths, makePrivatePaths };
-    }
-
-    @Post('edit/update-sources-config')
-    @SkipAuthGuard()
-    @UseGuards(GoogleAuthGuard)
-    async updateSourcesConfig(): Promise<{ success: boolean }> {
-        await this.utilsService.updateSourcesConfig();
-
-        return { success: true };
-    }
-
     @Post('edit/update-sort-albums-files')
     @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)

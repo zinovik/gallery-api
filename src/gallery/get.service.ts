@@ -18,10 +18,9 @@ export class GetService {
         albums: Album[];
         files: File[];
     }> {
-        const [filesWithoutUrls, albums, sourcesConfig] = await Promise.all([
+        const [filesWithoutUrls, albums] = await Promise.all([
             this.storageService.getFiles(),
             this.storageService.getAlbums(),
-            this.storageService.getSourcesConfig(),
         ]);
 
         const accessibleFilesWithoutUrls = filesWithoutUrls.filter((file) =>
@@ -31,17 +30,22 @@ export class GetService {
             hasAccess(userAccesses, album.accesses, album.path, accessedPath)
         );
 
+        const filteredFiles = isHomeOnly
+            ? []
+            : this.filterFilesByPathAndDateRanges({
+                  files: accessibleFilesWithoutUrls,
+                  path,
+                  dateRanges,
+              });
+
+        const sourcesConfig =
+            await this.storageService.getSourcesConfig(filteredFiles);
+
         return {
-            files: isHomeOnly
-                ? []
-                : this.filterFilesByPathAndDateRanges({
-                      files: accessibleFilesWithoutUrls,
-                      path,
-                      dateRanges,
-                  }).map((file) => ({
-                      ...file,
-                      url: sourcesConfig[file.filename] || file.filename,
-                  })),
+            files: filteredFiles.map((file) => ({
+                ...file,
+                url: sourcesConfig[file.filename] || '',
+            })),
 
             albums: (path || isHomeOnly
                 ? accessibleAlbums.filter(

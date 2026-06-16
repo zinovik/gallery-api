@@ -7,11 +7,12 @@ const BUCKET_NAME = 'zinovik-gallery';
 const USERS_FILE_NAME = 'users.json';
 const FILES_FILE_NAME = 'files.json';
 const ALBUMS_FILE_NAME = 'albums.json';
-const SOURCES_CONFIG_FILE_NAME = 'sources-config.json';
 
 @Injectable()
 export class StorageService {
     private readonly storage: Storage = new Storage();
+    private readonly inMemoryCacheUrls: Record<string, string> = {};
+    private inMemoryCachePaths: string[] = [];
 
     async getUsers(): Promise<User[]> {
         return (await this.getFile(BUCKET_NAME, USERS_FILE_NAME)) as User[]; // because we trust our "db"
@@ -31,11 +32,48 @@ export class StorageService {
         )) as FileModel[]; // because we trust our "db"
     }
 
-    async getSourcesConfig(): Promise<Record<string, string>> {
-        return (await this.getFile(
-            BUCKET_NAME,
-            SOURCES_CONFIG_FILE_NAME
-        )) as Record<string, string>; // because we trust our "db"
+    async getSourcesConfig(
+        files: FileModel[]
+    ): Promise<Record<string, string>> {
+        const sourceConfig: Record<string, string> = {};
+        const filesWithoutUrls: FileModel[] = [];
+
+        files.forEach((file) => {
+            if (this.inMemoryCacheUrls[file.filename]) {
+                sourceConfig[file.filename] =
+                    this.inMemoryCacheUrls[file.filename];
+            } else {
+                filesWithoutUrls.push(file);
+            }
+        });
+
+        if (filesWithoutUrls.length === 0) {
+            return sourceConfig;
+        }
+
+        if (this.inMemoryCachePaths.length === 0) {
+            this.inMemoryCachePaths = await this.getFilePaths();
+        }
+
+        await Promise.all(
+            filesWithoutUrls.map(async (file) => {
+                const filePath = this.inMemoryCachePaths.find((filePath) =>
+                    filePath.endsWith(`/${file.filename}`)
+                );
+
+                if (!filePath) return;
+
+                if (!this.inMemoryCacheUrls[file.filename]) {
+                    this.inMemoryCacheUrls[file.filename] =
+                        await this.getSignedUrl(filePath);
+                }
+
+                sourceConfig[file.filename] =
+                    this.inMemoryCacheUrls[file.filename];
+            })
+        );
+
+        return sourceConfig;
     }
 
     async saveAlbums(albums: AlbumModel[]): Promise<void> {
@@ -62,39 +100,6 @@ export class StorageService {
         });
 
         return url;
-    }
-
-    async saveSourcesConfig(
-        sourcesConfig: Record<string, string>
-    ): Promise<void> {
-        await this.saveFile(
-            BUCKET_NAME,
-            SOURCES_CONFIG_FILE_NAME,
-            sourcesConfig
-        );
-    }
-
-    async getIsPublic(storageFilePath: string): Promise<boolean> {
-        const bucket = this.storage.bucket(BUCKET_NAME);
-        const file = bucket.file(storageFilePath);
-        const [acl] = await file.acl.get();
-
-        return Array.isArray(acl)
-            ? acl.some(
-                  (entry) =>
-                      entry.entity === 'allUsers' && entry.role === 'READER'
-              )
-            : acl.entity === 'allUsers' && acl.role === 'READER';
-    }
-
-    async makePublic(storageFilePath: string) {
-        const bucket = this.storage.bucket(BUCKET_NAME);
-        await bucket.file(storageFilePath).makePublic();
-    }
-
-    async makePrivate(storageFilePath: string) {
-        const bucket = this.storage.bucket(BUCKET_NAME);
-        await bucket.file(storageFilePath).makePrivate({ strict: true });
     }
 
     private async getFile(
