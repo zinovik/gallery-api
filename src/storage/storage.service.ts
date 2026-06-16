@@ -3,7 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { AlbumModel, FileModel } from '../common/album-file.types';
 import { User } from '../common/user.type';
 
-const BUCKET_NAME = 'zinovik-gallery';
+const BUCKET_NAME_JSONS = 'zinovik-gallery';
+const BUCKET_NAME_FILES = 'zinovik-gallery';
 const USERS_FILE_NAME = 'users.json';
 const FILES_FILE_NAME = 'files.json';
 const ALBUMS_FILE_NAME = 'albums.json';
@@ -15,19 +16,22 @@ export class StorageService {
     private inMemoryCachePaths: string[] = [];
 
     async getUsers(): Promise<User[]> {
-        return (await this.getFile(BUCKET_NAME, USERS_FILE_NAME)) as User[]; // because we trust our "db"
+        return (await this.getFile(
+            BUCKET_NAME_JSONS,
+            USERS_FILE_NAME
+        )) as User[]; // because we trust our "db"
     }
 
     async getAlbums(): Promise<AlbumModel[]> {
         return (await this.getFile(
-            BUCKET_NAME,
+            BUCKET_NAME_JSONS,
             ALBUMS_FILE_NAME
         )) as AlbumModel[]; // because we trust our "db"
     }
 
     async getFiles(): Promise<FileModel[]> {
         return (await this.getFile(
-            BUCKET_NAME,
+            BUCKET_NAME_JSONS,
             FILES_FILE_NAME
         )) as FileModel[]; // because we trust our "db"
     }
@@ -77,22 +81,22 @@ export class StorageService {
     }
 
     async saveAlbums(albums: AlbumModel[]): Promise<void> {
-        await this.saveFile(BUCKET_NAME, ALBUMS_FILE_NAME, albums);
+        await this.saveFile(BUCKET_NAME_JSONS, ALBUMS_FILE_NAME, albums);
     }
 
     async saveFiles(files: FileModel[]): Promise<void> {
-        await this.saveFile(BUCKET_NAME, FILES_FILE_NAME, files);
+        await this.saveFile(BUCKET_NAME_JSONS, FILES_FILE_NAME, files);
     }
 
-    async getFilePaths(): Promise<string[]> {
-        const bucket = this.storage.bucket(BUCKET_NAME);
+    private async getFilePaths(): Promise<string[]> {
+        const bucket = this.storage.bucket(BUCKET_NAME_FILES);
         const [files] = await bucket.getFiles();
 
         return files.map((file) => file.name);
     }
 
-    async getSignedUrl(filePath: string): Promise<string> {
-        const bucket = this.storage.bucket(BUCKET_NAME);
+    private async getSignedUrl(filePath: string): Promise<string> {
+        const bucket = this.storage.bucket(BUCKET_NAME_FILES);
         const [url] = await bucket.file(filePath).getSignedUrl({
             version: 'v4',
             action: 'read',
