@@ -12,8 +12,8 @@
         "build": "rm -rf dist && tsc",
         "start": "node dist/main.js",
         "start:dev": "npm run build && DEVELOPMENT=true GOOGLE_APPLICATION_CREDENTIALS=key-file.json nest start --watch",
-        "build:cloud": "gcloud builds submit --tag europe-central2-docker.pkg.dev/zinovik-gallery/zinovik-repository/gallery-api --region=europe-west1 --project zinovik-gallery",
-        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-gallery/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-gallery --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest --service-account=gallery-api@zinovik-gallery.iam.gserviceaccount.com"
+        "build:cloud": "gcloud builds submit --tag europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api --region=europe-west1 --project zinovik-project",
+        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-project/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-project --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest --service-account=gallery@zinovik-project.iam.gserviceaccount.com"
     },
     "dependencies": {
         "@google-cloud/storage": "7.19.0",
