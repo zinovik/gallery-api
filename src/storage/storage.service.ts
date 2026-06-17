@@ -4,7 +4,7 @@ import { AlbumModel, FileModel } from '../common/album-file.types';
 import { User } from '../common/user.type';
 
 const BUCKET_NAME_JSONS = 'zinovik-gallery';
-const BUCKET_NAME_FILES = 'zinovik-gallery';
+const BUCKET_NAME_FILES = 'gallery-files';
 const USERS_FILE_NAME = 'users.json';
 const FILES_FILE_NAME = 'files.json';
 const ALBUMS_FILE_NAME = 'albums.json';
@@ -13,7 +13,7 @@ const ALBUMS_FILE_NAME = 'albums.json';
 export class StorageService {
     private readonly storage: Storage = new Storage();
     private readonly inMemoryCacheUrls: Record<string, string> = {};
-    private inMemoryCachePaths: string[] = [];
+    private inMemoryCachePathMap: Record<string, string> = {};
 
     async getUsers(): Promise<User[]> {
         return (await this.getFile(
@@ -55,15 +55,20 @@ export class StorageService {
             return sourceConfig;
         }
 
-        if (this.inMemoryCachePaths.length === 0) {
-            this.inMemoryCachePaths = await this.getFilePaths();
+        if (Object.keys(this.inMemoryCachePathMap).length === 0) {
+            const inMemoryCachePaths = await this.getFilePaths();
+
+            this.inMemoryCachePathMap = Object.fromEntries(
+                inMemoryCachePaths.map((path) => [
+                    path.substring(path.lastIndexOf('/') + 1),
+                    path,
+                ])
+            );
         }
 
         await Promise.all(
             filesWithoutUrls.map(async (file) => {
-                const filePath = this.inMemoryCachePaths.find((filePath) =>
-                    filePath.endsWith(`/${file.filename}`)
-                );
+                const filePath = this.inMemoryCachePathMap[file.filename];
 
                 if (!filePath) return;
 
