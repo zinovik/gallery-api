@@ -1,38 +1,57 @@
 name: Deploy to Google Run
 run-name: Deploy to Google Run
+
 on: [push]
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v6
+
       - name: Use Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24.x'
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
       - name: Run tests
         run: npm run test
+
   Deploy:
     runs-on: ubuntu-latest
+    needs: Tests
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v6
+
       - name: Use Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24.x'
+
+      - name: Authenticate to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/278546267214/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github@zinovik-gallery.iam.gserviceaccount.com"
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Install dependencies
-        run: npm install
-      - name: Save service account key file environment variable to file
-        run: echo "${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY_FILE }}" | base64 -d >> key-file.json
-      - name: Authenticate service account
-        run: gcloud auth activate-service-account --key-file key-file.json
-      - name: Remove key-file.json
-        run: rm key-file.json
+        run: npm ci
+
       - name: Build
         run: npm run build:cloud
+
       - name: Deploy
         run: npm run deploy
