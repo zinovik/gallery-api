@@ -5,7 +5,7 @@ const ACCESS_PUBLIC = 'public';
 
 export const hasAccess = (
     userAccesses: string[],
-    targetAccesses: string[],
+    targetAccesses: string[] = [],
     path: string,
     accessedPath: string | ''
 ) => {
@@ -24,12 +24,4 @@ export const hasAccess = (
         (targetAccesses.length > 0 &&
             targetAccesses.some((access) => userAccesses.includes(access)))
     );
-};
-
-export const getPublicFilenames = (files: FileModel[]) => {
-    const userAccesses: string[] = []; // no accesses = public user
-
-    return files
-        .filter((file) => hasAccess(userAccesses, file.accesses, file.path, ''))
-        .map((file) => file.filename);
 };

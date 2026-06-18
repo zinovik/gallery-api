@@ -12,8 +12,14 @@ const ALBUMS_FILE_NAME = 'albums.json';
 @Injectable()
 export class StorageService {
     private readonly storage: Storage = new Storage();
+
     private readonly inMemoryCacheUrls: Record<string, string> = {};
+
     private inMemoryCachePathMap: Record<string, string> = {};
+
+    private inMemoryCacheFilePaths: string[] = [];
+    private inMemoryCacheFilePathsTimestamp: number = 0;
+    private readonly CACHE_VALIDITY_MS = 15 * 60 * 1000; // 15 minutes
 
     async getUsers(): Promise<User[]> {
         return (await this.getFile(
@@ -56,13 +62,10 @@ export class StorageService {
         }
 
         if (Object.keys(this.inMemoryCachePathMap).length === 0) {
-            const inMemoryCachePaths = await this.getFilePaths();
+            const filePaths = await this.getFilePaths();
 
             this.inMemoryCachePathMap = Object.fromEntries(
-                inMemoryCachePaths.map((path) => [
-                    path.substring(path.lastIndexOf('/') + 1),
-                    path,
-                ])
+                filePaths.map((path) => [path.split('/').pop(), path])
             );
         }
 
@@ -93,11 +96,21 @@ export class StorageService {
         await this.saveFile(BUCKET_NAME_JSONS, FILES_FILE_NAME, files);
     }
 
-    private async getFilePaths(): Promise<string[]> {
-        const bucket = this.storage.bucket(BUCKET_NAME_FILES);
-        const [files] = await bucket.getFiles();
+    async getFilePaths(): Promise<string[]> {
+        const now = Date.now();
 
-        return files.map((file) => file.name);
+        if (
+            this.inMemoryCacheFilePaths.length === 0 ||
+            now - this.inMemoryCacheFilePathsTimestamp >= this.CACHE_VALIDITY_MS
+        ) {
+            const bucket = this.storage.bucket(BUCKET_NAME_FILES);
+            const [files] = await bucket.getFiles();
+
+            this.inMemoryCacheFilePaths = files.map((file) => file.name);
+            this.inMemoryCacheFilePathsTimestamp = now;
+        }
+
+        return this.inMemoryCacheFilePaths;
     }
 
     private async getSignedUrl(filePath: string): Promise<string> {

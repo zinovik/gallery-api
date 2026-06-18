@@ -33,7 +33,7 @@ export class GoogleAuthGuard implements CanActivate {
             return false;
         }
 
-        if (!ALLOWED_SERVICE_ACCOUNTS.includes(payload?.email)) {
+        if (!ALLOWED_SERVICE_ACCOUNTS.includes(payload?.email ?? '')) {
             return false;
         }
 

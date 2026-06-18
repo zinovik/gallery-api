@@ -3,37 +3,35 @@ export interface AlbumModel {
     title: string;
     defaultByDate?: true;
     text?: string | string[];
-    accesses: string[];
     order?: number;
+    accesses?: string[];
 }
 
 export interface FileModel {
     path: string;
     filename: string;
-    isNoThumbnail?: true;
     description?: string;
     text?: string | string[];
-    accesses: string[];
+    accesses?: string[];
 }
 
-export interface Album {
+export interface AlbumDTO {
     path: string;
     title: string;
-    filesAmount: number;
-    defaultByDate?: true;
     text?: string | string[];
-    accesses: string[];
+    filesAmount?: number;
+    defaultByDate?: true;
     order?: number;
+    accesses?: string[];
 }
 
-export interface File {
-    path: string;
+export interface FileDTO {
     filename: string;
-    isNoThumbnail?: true;
+    path: string;
+    url: string;
     description?: string;
     text?: string | string[];
-    url: string;
-    accesses: string[];
+    accesses?: string[];
 }
 
 export interface RemovedAlbum {

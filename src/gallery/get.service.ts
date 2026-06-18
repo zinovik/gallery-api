@@ -1,7 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { hasAccess } from './helper/access.helper';
-import { Album, File } from '../common/album-file.types';
+import { AlbumDTO, FileDTO } from '../common/album-file.types';
+import { sortAlbums } from './helper/sort.helper';
+
+// will be moved to db
+const PATH_MAPPINGS: Record<string, string> = {
+    'board-games-pure-games': 'board-games',
+    'unguja-zanzibar-tanzania': 'zanzibar',
+    'warszawska-dycha-payed': 'warszawska-dycha',
+    'belarusian-cup-final':
+        'football/belarus/belarusian-cup-2017-2018/final-bate-dynamo-brest',
+};
 
 @Injectable()
 export class GetService {
@@ -15,18 +25,33 @@ export class GetService {
         isHomeInclude: boolean,
         dateRanges?: string[][]
     ): Promise<{
-        albums: Album[];
-        files: File[];
+        albums: AlbumDTO[];
+        files: FileDTO[];
     }> {
-        const [filesWithoutUrls, albums] = await Promise.all([
+        const [storageFilePaths, filesWithoutUrls, albums] = await Promise.all([
+            this.storageService.getFilePaths(),
             this.storageService.getFiles(),
             this.storageService.getAlbums(),
         ]);
 
-        const accessibleFilesWithoutUrls = filesWithoutUrls.filter((file) =>
+        const allFiles = this.getPopulatedFilesWithoutUrls(
+            storageFilePaths,
+            filesWithoutUrls
+        );
+
+        const filePaths: string[] = [
+            ...new Set(allFiles.map((file) => file.path)),
+        ];
+
+        const allAlbums = sortAlbums(
+            this.getPopulatedAlbums(filePaths, albums),
+            allFiles
+        );
+
+        const accessibleFilesWithoutUrls = allFiles.filter((file) =>
             hasAccess(userAccesses, file.accesses, file.path, accessedPath)
         );
-        const accessibleAlbums = albums.filter((album) =>
+        const accessibleAlbums = allAlbums.filter((album) =>
             hasAccess(userAccesses, album.accesses, album.path, accessedPath)
         );
 
@@ -58,13 +83,97 @@ export class GetService {
                 : accessibleAlbums
             ).map((album) => ({
                 ...album,
-                filesAmount: this.isTopLevelPath(album.path)
-                    ? accessibleFilesWithoutUrls.filter((file) =>
-                          this.isThisOrChildPath(file.path, album.path)
-                      ).length
-                    : 0,
+                ...(this.isTopLevelPath(album.path)
+                    ? {
+                          filesAmount: accessibleFilesWithoutUrls.filter(
+                              (file) =>
+                                  this.isThisOrChildPath(file.path, album.path)
+                          ).length,
+                      }
+                    : {}),
             })),
         };
+    }
+
+    private getPopulatedFilesWithoutUrls(
+        storageFilePaths: string[],
+        filesWithoutUrls: Omit<FileDTO, 'url'>[]
+    ): Omit<FileDTO, 'url'>[] {
+        const filesWithoutUrlsMap: Record<string, Omit<FileDTO, 'url'>> = {};
+
+        filesWithoutUrls.forEach((file) => {
+            filesWithoutUrlsMap[file.filename] = file;
+        });
+
+        return storageFilePaths.map((storageFilePath) => {
+            const filename = storageFilePath.split('/').pop() ?? '';
+            const file = filesWithoutUrlsMap[filename];
+
+            const path =
+                file?.path ??
+                storageFilePath
+                    .split('/')
+                    .slice(0, -1)
+                    .join('/')
+                    .replace(/(?:^|\/)\d{4}\.\d{2}\.\d{2} - /, '')
+                    .trim()
+                    .replace(/[(),]/g, '')
+                    .replace(/[\s']+/g, '-')
+                    .replace(/-+/g, '-')
+                    .toLowerCase();
+
+            return {
+                filename,
+                path: PATH_MAPPINGS[path] ?? path,
+                description: file?.description,
+                text: file?.text,
+                accesses: file?.accesses,
+            };
+        });
+    }
+
+    private getPopulatedAlbums(
+        filePaths: string[],
+        albums: AlbumDTO[]
+    ): AlbumDTO[] {
+        const albumsMap: Record<string, AlbumDTO> = {};
+
+        albums.forEach((album) => {
+            albumsMap[album.path] = album;
+        });
+
+        const populatedAlbums: AlbumDTO[] = [];
+        const usedAlbums: Set<string> = new Set();
+
+        filePaths.forEach((filePath) => {
+            const album = albumsMap[filePath];
+
+            if (album) usedAlbums.add(album.path);
+
+            populatedAlbums.push({
+                path: filePath,
+                title:
+                    (album?.title ??
+                        filePath
+                            .split('/')
+                            .slice(-1)[0]
+                            .replace(/-/g, ' ')
+                            .replace(/\b\w/g, (c) => c.toUpperCase())) ||
+                    'untitled',
+                text: album?.text,
+                defaultByDate: album?.defaultByDate,
+                order: album?.order,
+                accesses: album?.accesses,
+            });
+        });
+
+        albums.forEach((album) => {
+            if (!usedAlbums.has(album.path)) {
+                populatedAlbums.push(album);
+            }
+        });
+
+        return populatedAlbums;
     }
 
     private isTopLevelPath(path: string): boolean {
@@ -94,7 +203,7 @@ export class GetService {
         path,
         dateRanges,
     }: {
-        files: Omit<File, 'url'>[];
+        files: Omit<FileDTO, 'url'>[];
         path: string;
         dateRanges?: string[][];
     }) {

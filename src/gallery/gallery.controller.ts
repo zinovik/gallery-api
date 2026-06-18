@@ -9,7 +9,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
-import { Album, File, FileModel } from '../common/album-file.types';
+import { AlbumDTO, FileDTO, FileModel } from '../common/album-file.types';
 import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { EditGuard } from '../auth/edit.guard';
@@ -39,8 +39,8 @@ export class GalleryController {
         @Query('date-ranges') dateRanges: string,
         @Param('path') path?: string | undefined
     ): Promise<{
-        albums: Album[];
-        files: File[];
+        albums: AlbumDTO[];
+        files: FileDTO[];
         user?: User;
     }> {
         const userAccesses = request.user?.accesses || [];
