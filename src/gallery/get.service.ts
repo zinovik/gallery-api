@@ -63,13 +63,14 @@ export class GetService {
                   dateRanges,
               });
 
-        const sourcesConfig =
-            await this.storageService.getSourcesConfig(filteredFiles);
+        const signedUrlsMap = await this.storageService.getSignedUrlsMap(
+            filteredFiles.map((file) => file.filename)
+        );
 
         return {
             files: filteredFiles.map((file) => ({
                 ...file,
-                url: sourcesConfig[file.filename] || '',
+                url: signedUrlsMap[file.filename] || '',
             })),
 
             albums: (path || isHomeOnly
