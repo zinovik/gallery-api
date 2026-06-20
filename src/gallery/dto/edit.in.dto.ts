@@ -12,38 +12,38 @@ import { IsStringOrArrayOfStrings } from './is-string-or-array-of-strings.decora
 class RemovedAlbumInDTO {
     @IsString()
     @ApiProperty({ type: String, example: 'board-games/unsorted' })
-    path: string;
+    path!: string;
 }
 
 class RemovedFileInDTO {
     @IsString()
     @ApiProperty({ type: String, example: '20000000_000000.jpg' })
-    filename: string;
+    filename!: string;
 }
 
 class AddedAlbumInDTO {
     @IsString()
     @ApiProperty({ type: String, example: 'board-games/unsorted' })
-    path: string;
+    path!: string;
 
     @IsString()
     @ApiProperty()
-    title: string;
+    title!: string;
 
     @IsStringOrArrayOfStrings()
     @IsOptional()
     @ApiProperty()
-    text: string | string[];
+    text?: string | string[];
 
     @IsString({ each: true })
     @ApiProperty()
-    accesses: string[];
+    accesses?: string[];
 }
 
 class UpdatedAlbumInDTO {
     @IsString()
     @ApiProperty({ type: String, example: 'board-games/unsorted' })
-    path: string;
+    path!: string;
 
     @IsString()
     @IsOptional()
@@ -74,7 +74,7 @@ class UpdatedAlbumInDTO {
 class UpdatedFileInDTO {
     @IsString()
     @ApiProperty({ type: String, example: '20241231_000000.jpg' })
-    filename: string;
+    filename!: string;
 
     @IsString()
     @IsOptional()

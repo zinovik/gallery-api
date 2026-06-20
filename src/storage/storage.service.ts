@@ -1,7 +1,13 @@
 import { FieldPath, Firestore } from '@google-cloud/firestore';
 import { Storage, File } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
-import { AlbumModel, FileModel } from '../common/album-file.types';
+import {
+    AddedAlbum,
+    AlbumModel,
+    FileModel,
+    UpdatedAlbum,
+    UpdatedFile,
+} from '../common/album-file.types';
 import { User } from '../common/user.type';
 
 const BUCKET_NAME_JSONS = 'zinovik-gallery';
@@ -12,9 +18,21 @@ const FILES_FILE_NAME = 'files.json';
 const ALBUMS_FILE_NAME = 'albums.json';
 
 const FIRESTORE_DB = 'gallery-db';
-const FIRESTORE_COLLECTION = 'signed-urls';
+const FIRESTORE_FILES_COLLECTION = 'files';
+const FIRESTORE_FILES_KEY_NAME = 'filename';
+const FIRESTORE_ALBUMS_COLLECTION = 'albums';
+const FIRESTORE_ALBUMS_KEY_NAME = 'path';
+const FIRESTORE_SIGNED_URLS_COLLECTION = 'signed-urls';
+
+const SLASH = '___';
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
+
+const KEY_NAME = 'storagePath';
+type SignedUrlModel = {
+    [KEY_NAME]: string;
+    url: string;
+};
 
 @Injectable()
 export class StorageService {
@@ -67,11 +85,17 @@ export class StorageService {
     async getSignedUrlsMap(
         filenames: string[]
     ): Promise<Record<string, string>> {
+        const filePaths = await this.getFilePaths();
+
+        const pathMap = Object.fromEntries(
+            filePaths.map((path) => [path.split('/').pop(), path])
+        );
+
         const signedUrlsMap: Record<string, string> = {};
         const filenamesWithoutInMemoryCacheUrls: string[] = [];
 
         filenames.forEach((filename) => {
-            const url = this.inMemoryCacheSignedUrls[filename];
+            const url = this.inMemoryCacheSignedUrls[pathMap[filename]];
             if (url) signedUrlsMap[filename] = url;
             else filenamesWithoutInMemoryCacheUrls.push(filename);
         });
@@ -79,38 +103,34 @@ export class StorageService {
         if (filenamesWithoutInMemoryCacheUrls.length === 0)
             return signedUrlsMap;
 
-        const docs = await this.getFirestoreDocuments<{ url: string }>(
-            FIRESTORE_COLLECTION,
-            filenamesWithoutInMemoryCacheUrls
+        const dbUrls = await this.getFirestoreDocuments<SignedUrlModel>(
+            FIRESTORE_SIGNED_URLS_COLLECTION,
+            filenamesWithoutInMemoryCacheUrls.map((f) =>
+                pathMap[f].replace(/\//g, SLASH)
+            ),
+            KEY_NAME
         );
 
         const dbCacheSignedUrls: Record<string, string> = {};
-        docs.forEach((doc) => {
-            dbCacheSignedUrls[doc.id] = doc.data.url;
+        dbUrls.forEach((dbUrl) => {
+            dbCacheSignedUrls[
+                dbUrl[KEY_NAME].replace(new RegExp(SLASH, 'g'), '/')
+            ] = dbUrl.url;
         });
 
         const filenamesWithoutAnyCacheUrls: string[] = [];
 
         filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
-            const url = dbCacheSignedUrls[filename];
+            const url = dbCacheSignedUrls[pathMap[filename]];
             if (url) {
                 signedUrlsMap[filename] = url;
-                this.inMemoryCacheSignedUrls[filename] = url;
+                this.inMemoryCacheSignedUrls[pathMap[filename]] = url;
             } else filenamesWithoutAnyCacheUrls.push(filename);
         });
 
         if (filenamesWithoutAnyCacheUrls.length === 0) return signedUrlsMap;
 
-        const filePaths = await this.getFilePaths();
-
-        const pathMap = Object.fromEntries(
-            filePaths.map((path) => [path.split('/').pop(), path])
-        );
-
-        const toFirestoreDocs: {
-            id: string;
-            data: FirebaseFirestore.DocumentData;
-        }[] = [];
+        const dbUrlsToSave: SignedUrlModel[] = [];
 
         const batchSize = 5;
         for (
@@ -130,19 +150,20 @@ export class StorageService {
 
                     signedUrlsMap[filename] = url;
                     if (url) {
-                        this.inMemoryCacheSignedUrls[filename] = url;
-                        toFirestoreDocs.push({
-                            id: filename,
-                            data: { url: signedUrlsMap[filename] },
+                        this.inMemoryCacheSignedUrls[pathMap[filename]] = url;
+                        dbUrlsToSave.push({
+                            [KEY_NAME]: pathMap[filename].replace(/\//g, SLASH),
+                            url: signedUrlsMap[filename],
                         });
                     }
                 })
             );
         }
 
-        await this.writeFirestoreDocuments(
-            FIRESTORE_COLLECTION,
-            toFirestoreDocs,
+        await this.writeFirestoreDocuments<SignedUrlModel>(
+            FIRESTORE_SIGNED_URLS_COLLECTION,
+            dbUrlsToSave,
+            KEY_NAME,
             URL_TTL
         );
 
@@ -215,17 +236,152 @@ export class StorageService {
         });
     }
 
-    async getFirestoreDocuments<T>(
+    async removeFiles(filenames?: string[]) {
+        if (!filenames || filenames.length === 0) return;
+
+        await this.removeFirestoreDocuments(FIRESTORE_FILES_COLLECTION, [
+            ...new Set(filenames),
+        ]);
+    }
+
+    async removeAlbums(paths?: string[]) {
+        if (!paths || paths.length === 0) return;
+
+        await this.removeFirestoreDocuments(FIRESTORE_ALBUMS_COLLECTION, [
+            ...new Set(paths),
+        ]);
+    }
+
+    async updateFiles(updatedFiles?: UpdatedFile[]) {
+        if (!updatedFiles || updatedFiles.length === 0) return;
+
+        const filenames = updatedFiles.map((f) => f.filename);
+
+        const dbFiles = await this.getFirestoreDocuments<FileModel>(
+            FIRESTORE_FILES_COLLECTION,
+            filenames,
+            FIRESTORE_FILES_KEY_NAME
+        );
+
+        const updatedFilesMap: Record<
+            string,
+            Omit<UpdatedFile, 'filename'>
+        > = {};
+        updatedFiles.forEach((updatedFile) => {
+            const { filename, ...rest } = updatedFile;
+
+            updatedFilesMap[filename] = {
+                ...(updatedFilesMap[filename] ?? {}),
+                ...rest,
+            };
+        });
+
+        const appliedUpdatesFiles: FileModel[] = dbFiles.map((dbFile) => {
+            const updatedFile = updatedFilesMap[dbFile.filename];
+
+            return {
+                ...dbFile,
+                ...(updatedFile.path !== undefined
+                    ? { path: updatedFile.path }
+                    : {}),
+                ...(updatedFile.description !== undefined
+                    ? { description: updatedFile.description }
+                    : {}),
+                ...(updatedFile.text !== undefined
+                    ? { text: updatedFile.text }
+                    : {}),
+                ...(updatedFile.accesses !== undefined
+                    ? {
+                          accesses: updatedFile.accesses,
+                      }
+                    : {}),
+            };
+        });
+
+        await this.writeFirestoreDocuments(
+            FIRESTORE_ALBUMS_COLLECTION,
+            appliedUpdatesFiles,
+            FIRESTORE_FILES_KEY_NAME
+        );
+    }
+
+    async updateAlbums(updatedAlbums?: UpdatedAlbum[]) {
+        if (!updatedAlbums || updatedAlbums.length === 0) return;
+
+        const paths = updatedAlbums.map((a) => a.path);
+
+        const dbAlbums = await this.getFirestoreDocuments<AlbumModel>(
+            FIRESTORE_ALBUMS_COLLECTION,
+            paths,
+            FIRESTORE_ALBUMS_KEY_NAME
+        );
+
+        const updatedAlbumsMap: Record<string, Omit<UpdatedAlbum, 'path'>> = {};
+        updatedAlbums.forEach((updatedAlbum) => {
+            const { path, ...rest } = updatedAlbum;
+
+            updatedAlbumsMap[path] = {
+                ...(updatedAlbumsMap[path] ?? {}),
+                ...rest,
+            };
+        });
+
+        const appliedUpdatesAlbums: AlbumModel[] = dbAlbums.map((dbAlbum) => {
+            const updatedAlbum = updatedAlbumsMap[dbAlbum.path];
+
+            return {
+                ...dbAlbum,
+                ...(updatedAlbum.newPath !== undefined
+                    ? { path: updatedAlbum.newPath }
+                    : {}),
+                ...(updatedAlbum.title !== undefined
+                    ? { title: updatedAlbum.title }
+                    : {}),
+                ...(updatedAlbum.text !== undefined
+                    ? { text: updatedAlbum.text }
+                    : {}),
+                ...(updatedAlbum.order !== undefined
+                    ? { order: updatedAlbum.order }
+                    : {}),
+                ...(updatedAlbum.accesses !== undefined
+                    ? {
+                          accesses: updatedAlbum.accesses,
+                      }
+                    : {}),
+            };
+        });
+
+        await this.writeFirestoreDocuments<AlbumModel>(
+            FIRESTORE_ALBUMS_COLLECTION,
+            appliedUpdatesAlbums,
+            FIRESTORE_ALBUMS_KEY_NAME
+        );
+    }
+
+    async addAlbums(albums?: AddedAlbum[]) {
+        if (!albums || albums.length === 0) return;
+
+        await this.writeFirestoreDocuments<AlbumModel>(
+            FIRESTORE_ALBUMS_COLLECTION,
+            albums,
+            FIRESTORE_ALBUMS_KEY_NAME
+        );
+    }
+
+    private async getFirestoreDocuments<
+        T extends FirebaseFirestore.DocumentData,
+    >(
         collectionName: string,
-        documentIds: string[]
-    ): Promise<{ id: string; data: T }[]> {
+        documentIds: string[],
+        keyName: string
+    ): Promise<T[]> {
         const chunks = [];
 
         for (let i = 0; i < documentIds.length; i += 30) {
             chunks.push(documentIds.slice(i, i + 30));
         }
 
-        const results = await Promise.all(
+        const snapshots = await Promise.all(
             chunks.map((chunk) =>
                 this.firestore
                     .collection(collectionName)
@@ -234,17 +390,23 @@ export class StorageService {
             )
         );
 
-        return results.flatMap((snapshot) =>
-            snapshot.docs.map((doc) => ({
-                id: doc.id,
-                data: doc.data() as T,
-            }))
+        return snapshots.flatMap((snapshot) =>
+            snapshot.docs.map(
+                (doc) =>
+                    ({
+                        [keyName]: doc.id,
+                        ...doc.data(),
+                    }) as T
+            )
         );
     }
 
-    async writeFirestoreDocuments(
+    private async writeFirestoreDocuments<
+        T extends FirebaseFirestore.DocumentData,
+    >(
         collectionName: string,
-        documents: { id: string; data: FirebaseFirestore.DocumentData }[],
+        documents: T[],
+        keyName: string,
         ttlMs?: number
     ): Promise<void> {
         const chunks = [];
@@ -257,16 +419,49 @@ export class StorageService {
             const batch = this.firestore.batch();
 
             for (const item of chunk) {
-                batch.set(
-                    this.firestore.collection(collectionName).doc(item.id),
-                    {
-                        ...item.data,
-                        ...(ttlMs && {
-                            expiresAt: new Date(Date.now() + ttlMs),
-                        }),
-                    }
-                );
+                const { [keyName]: id, ...data } = item;
+
+                batch.set(this.firestore.collection(collectionName).doc(id), {
+                    ...data,
+                    ...(ttlMs && {
+                        expiresAt: new Date(Date.now() + ttlMs),
+                    }),
+                });
             }
+
+            await batch.commit();
+        }
+    }
+
+    private async removeFirestoreDocuments(
+        collectionName: string,
+        documentIds: string[]
+    ): Promise<void> {
+        const chunks = [];
+
+        for (let i = 0; i < documentIds.length; i += 30) {
+            chunks.push(documentIds.slice(i, i + 30));
+        }
+
+        const snapshots = await Promise.all(
+            chunks.map((chunk) =>
+                this.firestore
+                    .collection(collectionName)
+                    .where(FieldPath.documentId(), 'in', chunk)
+                    .get()
+            )
+        );
+
+        const docs = snapshots.flatMap((snapshot) => snapshot.docs);
+
+        if (docs.length === 0) return;
+
+        for (let i = 0; i < docs.length; i += 500) {
+            const batch = this.firestore.batch();
+
+            docs.slice(i, i + 500).forEach((doc) => {
+                batch.delete(doc.ref);
+            });
 
             await batch.commit();
         }

@@ -23,6 +23,7 @@ export interface AlbumDTO {
     defaultByDate?: true;
     order?: number;
     accesses?: string[];
+    isDb?: true;
 }
 
 export interface FileDTO {
@@ -32,6 +33,7 @@ export interface FileDTO {
     description?: string;
     text?: string | string[];
     accesses?: string[];
+    isDb?: true;
 }
 
 export interface RemovedAlbum {
@@ -45,8 +47,8 @@ export interface RemovedFile {
 export interface AddedAlbum {
     path: string;
     title: string;
-    text: string | string[];
-    accesses: string[];
+    text?: string | string[];
+    accesses?: string[];
 }
 
 export interface UpdatedAlbum {
@@ -54,8 +56,8 @@ export interface UpdatedAlbum {
     newPath?: string;
     title?: string;
     text?: string | string[];
-    accesses?: string[];
     order?: number;
+    accesses?: string[];
 }
 
 export interface UpdatedFile {

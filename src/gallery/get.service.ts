@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { hasAccess } from './helper/access.helper';
 import { AlbumDTO, FileDTO } from '../common/album-file.types';
-import { sortAlbums } from './helper/sort.helper';
+import { sortAlbums, sortFiles } from './helper/sort.helper';
 
 // will be moved to db
 const PATH_MAPPINGS: Record<string, string> = {
@@ -34,9 +34,11 @@ export class GetService {
             this.storageService.getAlbums(),
         ]);
 
-        const allFiles = this.getPopulatedFilesWithoutUrls(
-            storageFilePaths,
-            filesWithoutUrls
+        const allFiles = sortFiles(
+            this.getPopulatedFilesWithoutUrls(
+                storageFilePaths,
+                filesWithoutUrls
+            )
         );
 
         const filePaths: string[] = [
@@ -129,6 +131,7 @@ export class GetService {
                 description: file?.description,
                 text: file?.text,
                 accesses: file?.accesses,
+                ...(file ? { isDb: true } : {}),
             };
         });
     }
@@ -165,6 +168,7 @@ export class GetService {
                 defaultByDate: album?.defaultByDate,
                 order: album?.order,
                 accesses: album?.accesses,
+                ...(album ? { isDb: true } : {}),
             });
         });
 
