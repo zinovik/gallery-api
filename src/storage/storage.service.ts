@@ -61,23 +61,27 @@ export class StorageService {
     }
 
     async getAlbums(): Promise<AlbumModel[]> {
+        console.time('getAlbums');
         if (this.inMemoryCacheAlbums.length === 0) {
             this.inMemoryCacheAlbums = (await this.getFile(
                 BUCKET_NAME_JSONS,
                 ALBUMS_FILE_NAME
             )) as AlbumModel[]; // because we trust our "db"
         }
+        console.timeEnd('getAlbums');
 
         return this.inMemoryCacheAlbums;
     }
 
     async getFiles(): Promise<FileModel[]> {
+        console.time('getFiles');
         if (this.inMemoryCacheFiles.length === 0) {
             this.inMemoryCacheFiles = (await this.getFile(
                 BUCKET_NAME_JSONS,
                 FILES_FILE_NAME
             )) as FileModel[]; // because we trust our "db"
         }
+        console.timeEnd('getFiles');
 
         return this.inMemoryCacheFiles;
     }
@@ -132,6 +136,7 @@ export class StorageService {
 
         const dbUrlsToSave: SignedUrlModel[] = [];
 
+        console.time('signedUrlsMap - getSignedUrls');
         const batchSize = 5;
         for (
             let i = 0;
@@ -159,6 +164,7 @@ export class StorageService {
                 })
             );
         }
+        console.timeEnd('signedUrlsMap - getSignedUrls');
 
         await this.writeFirestoreDocuments<SignedUrlModel>(
             FIRESTORE_SIGNED_URLS_COLLECTION,
@@ -179,12 +185,14 @@ export class StorageService {
     }
 
     async getFilePaths(): Promise<string[]> {
+        console.time('getFilePaths');
         if (this.inMemoryCacheFilePaths.length === 0) {
             const bucket = this.storage.bucket(BUCKET_NAME_FILES);
             const [files] = await bucket.getFiles();
 
             this.inMemoryCacheFilePaths = files.map((file) => file.name);
         }
+        console.timeEnd('getFilePaths');
 
         return this.inMemoryCacheFilePaths;
     }

@@ -65,9 +65,11 @@ export class GetService {
                   dateRanges,
               });
 
+        console.time('signedUrlsMap');
         const signedUrlsMap = await this.storageService.getSignedUrlsMap(
             filteredFiles.map((file) => file.filename)
         );
+        console.timeEnd('signedUrlsMap');
 
         return {
             files: filteredFiles.map((file) => ({
