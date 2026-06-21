@@ -16,7 +16,6 @@ export class UtilsService {
         const filesSorted = sortFiles(files);
         const albumsSorted = sortAlbums(albums, filesSorted);
 
-        await this.storageService.saveAlbums(albumsSorted);
-        await this.storageService.saveFiles(filesSorted);
+        console.log(albumsSorted.length);
     }
 }

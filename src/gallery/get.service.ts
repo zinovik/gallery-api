@@ -34,21 +34,25 @@ export class GetService {
             this.storageService.getAlbums(),
         ]);
 
+        console.time('getPopulatedFilesWithoutUrls + sortFiles');
         const allFiles = sortFiles(
             this.getPopulatedFilesWithoutUrls(
                 storageFilePaths,
                 filesWithoutUrls
             )
         );
+        console.timeEnd('getPopulatedFilesWithoutUrls + sortFiles');
 
         const filePaths: string[] = [
             ...new Set(allFiles.map((file) => file.path)),
         ];
 
+        console.time('sortAlbums');
         const allAlbums = sortAlbums(
             this.getPopulatedAlbums(filePaths, albums),
             allFiles
         );
+        console.timeEnd('sortAlbums');
 
         const accessibleFilesWithoutUrls = allFiles.filter((file) =>
             hasAccess(userAccesses, file.accesses, file.path, accessedPath)

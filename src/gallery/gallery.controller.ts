@@ -67,6 +67,7 @@ export class GalleryController {
         return { success: true };
     }
 
+    // TODO: Purge memory cache
     @Post('edit/update-sort-albums-files')
     @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)

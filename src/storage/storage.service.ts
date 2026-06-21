@@ -10,21 +10,18 @@ import {
 } from '../common/album-file.types';
 import { User } from '../common/user.type';
 
-const BUCKET_NAME_JSONS = 'zinovik-gallery';
 const BUCKET_NAME_FILES = 'gallery-files';
 
-const USERS_FILE_NAME = 'users.json';
-const FILES_FILE_NAME = 'files.json';
-const ALBUMS_FILE_NAME = 'albums.json';
-
 const FIRESTORE_DB = 'gallery-db';
+const SLASH = '___';
+
 const FIRESTORE_FILES_COLLECTION = 'files';
 const FIRESTORE_FILES_KEY_NAME = 'filename';
 const FIRESTORE_ALBUMS_COLLECTION = 'albums';
 const FIRESTORE_ALBUMS_KEY_NAME = 'path';
+const FIRESTORE_USERS_COLLECTION = 'users';
+const FIRESTORE_USERS_KEY_NAME = 'email';
 const FIRESTORE_SIGNED_URLS_COLLECTION = 'signed-urls';
-
-const SLASH = '___';
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
 
@@ -51,9 +48,9 @@ export class StorageService {
 
     async getUsers(): Promise<User[]> {
         if (this.inMemoryCacheUsers.length === 0) {
-            this.inMemoryCacheUsers = (await this.getFile(
-                BUCKET_NAME_JSONS,
-                USERS_FILE_NAME
+            this.inMemoryCacheUsers = (await this.getAllFirestoreDocuments(
+                FIRESTORE_USERS_COLLECTION,
+                FIRESTORE_USERS_KEY_NAME
             )) as User[]; // because we trust our "db";
         }
 
@@ -63,9 +60,9 @@ export class StorageService {
     async getAlbums(): Promise<AlbumModel[]> {
         console.time('getAlbums');
         if (this.inMemoryCacheAlbums.length === 0) {
-            this.inMemoryCacheAlbums = (await this.getFile(
-                BUCKET_NAME_JSONS,
-                ALBUMS_FILE_NAME
+            this.inMemoryCacheAlbums = (await this.getAllFirestoreDocuments(
+                FIRESTORE_ALBUMS_COLLECTION,
+                FIRESTORE_ALBUMS_KEY_NAME
             )) as AlbumModel[]; // because we trust our "db"
         }
         console.timeEnd('getAlbums');
@@ -76,9 +73,9 @@ export class StorageService {
     async getFiles(): Promise<FileModel[]> {
         console.time('getFiles');
         if (this.inMemoryCacheFiles.length === 0) {
-            this.inMemoryCacheFiles = (await this.getFile(
-                BUCKET_NAME_JSONS,
-                FILES_FILE_NAME
+            this.inMemoryCacheFiles = (await this.getAllFirestoreDocuments(
+                FIRESTORE_FILES_COLLECTION,
+                FIRESTORE_FILES_KEY_NAME
             )) as FileModel[]; // because we trust our "db"
         }
         console.timeEnd('getFiles');
@@ -109,17 +106,13 @@ export class StorageService {
 
         const dbUrls = await this.getFirestoreDocuments<SignedUrlModel>(
             FIRESTORE_SIGNED_URLS_COLLECTION,
-            filenamesWithoutInMemoryCacheUrls.map((f) =>
-                pathMap[f].replace(/\//g, SLASH)
-            ),
+            filenamesWithoutInMemoryCacheUrls.map((f) => pathMap[f]),
             KEY_NAME
         );
 
         const dbCacheSignedUrls: Record<string, string> = {};
         dbUrls.forEach((dbUrl) => {
-            dbCacheSignedUrls[
-                dbUrl[KEY_NAME].replace(new RegExp(SLASH, 'g'), '/')
-            ] = dbUrl.url;
+            dbCacheSignedUrls[dbUrl[KEY_NAME]] = dbUrl.url;
         });
 
         const filenamesWithoutAnyCacheUrls: string[] = [];
@@ -157,7 +150,7 @@ export class StorageService {
                     if (url) {
                         this.inMemoryCacheSignedUrls[pathMap[filename]] = url;
                         dbUrlsToSave.push({
-                            [KEY_NAME]: pathMap[filename].replace(/\//g, SLASH),
+                            [KEY_NAME]: pathMap[filename],
                             url: signedUrlsMap[filename],
                         });
                     }
@@ -174,14 +167,6 @@ export class StorageService {
         );
 
         return signedUrlsMap;
-    }
-
-    async saveAlbums(albums: AlbumModel[]): Promise<void> {
-        await this.saveFile(BUCKET_NAME_JSONS, ALBUMS_FILE_NAME, albums);
-    }
-
-    async saveFiles(files: FileModel[]): Promise<void> {
-        await this.saveFile(BUCKET_NAME_JSONS, FILES_FILE_NAME, files);
     }
 
     async getFilePaths(): Promise<string[]> {
@@ -376,6 +361,20 @@ export class StorageService {
         );
     }
 
+    private async getAllFirestoreDocuments<
+        T extends FirebaseFirestore.DocumentData,
+    >(collectionName: string, keyName: string): Promise<T[]> {
+        const snapshot = await this.firestore.collection(collectionName).get();
+
+        return snapshot.docs.map(
+            (doc) =>
+                ({
+                    ...doc.data(),
+                    [keyName]: doc.id.replace(new RegExp(SLASH, 'g'), '/'),
+                }) as T
+        );
+    }
+
     private async getFirestoreDocuments<
         T extends FirebaseFirestore.DocumentData,
     >(
@@ -386,7 +385,11 @@ export class StorageService {
         const chunks = [];
 
         for (let i = 0; i < documentIds.length; i += 30) {
-            chunks.push(documentIds.slice(i, i + 30));
+            chunks.push(
+                documentIds
+                    .slice(i, i + 30)
+                    .map((documentId) => documentId.replace(/\//g, SLASH))
+            );
         }
 
         const snapshots = await Promise.all(
@@ -402,7 +405,7 @@ export class StorageService {
             snapshot.docs.map(
                 (doc) =>
                     ({
-                        [keyName]: doc.id,
+                        [keyName]: doc.id.replace(new RegExp(SLASH, 'g'), '/'),
                         ...doc.data(),
                     }) as T
             )
@@ -429,12 +432,17 @@ export class StorageService {
             for (const item of chunk) {
                 const { [keyName]: id, ...data } = item;
 
-                batch.set(this.firestore.collection(collectionName).doc(id), {
-                    ...data,
-                    ...(ttlMs && {
-                        expiresAt: new Date(Date.now() + ttlMs),
-                    }),
-                });
+                batch.set(
+                    this.firestore
+                        .collection(collectionName)
+                        .doc(id.replace(/\//g, SLASH)),
+                    {
+                        ...data,
+                        ...(ttlMs && {
+                            expiresAt: new Date(Date.now() + ttlMs),
+                        }),
+                    }
+                );
             }
 
             await batch.commit();
@@ -448,7 +456,11 @@ export class StorageService {
         const chunks = [];
 
         for (let i = 0; i < documentIds.length; i += 30) {
-            chunks.push(documentIds.slice(i, i + 30));
+            chunks.push(
+                documentIds
+                    .slice(i, i + 30)
+                    .map((documentId) => documentId.replace(/\//g, SLASH))
+            );
         }
 
         const snapshots = await Promise.all(
