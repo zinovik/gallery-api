@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { StorageService } from '../storage/storage.service';
+import { CacheService } from '../cache/cache.service';
+import { FirestoreService } from '../firestore/firestore.service';
 
 @Module({
-    providers: [UsersService, StorageService],
+    providers: [UsersService, CacheService, FirestoreService],
     exports: [UsersService],
 })
 export class UsersModule {}

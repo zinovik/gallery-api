@@ -28,8 +28,9 @@ export class GetService {
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
+        console.time('get');
         const [storageFilePaths, filesWithoutUrls, albums] = await Promise.all([
-            this.storageService.getFilePaths(),
+            this.storageService.getStorageFilePaths(),
             this.storageService.getFiles(),
             this.storageService.getAlbums(),
         ]);
@@ -75,7 +76,7 @@ export class GetService {
         );
         console.timeEnd('signedUrlsMap');
 
-        return {
+        const result = {
             files: filteredFiles.map((file) => ({
                 ...file,
                 url: signedUrlsMap[file.filename] || '',
@@ -102,6 +103,10 @@ export class GetService {
                     : {}),
             })),
         };
+
+        console.timeEnd('get');
+
+        return result;
     }
 
     private getPopulatedFilesWithoutUrls(

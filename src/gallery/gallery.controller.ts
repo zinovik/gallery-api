@@ -9,21 +9,21 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
-import { AlbumDTO, FileDTO, FileModel } from '../common/album-file.types';
+import { AlbumDTO, FileDTO } from '../common/album-file.types';
 import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { EditGuard } from '../auth/edit.guard';
 import { GetService } from './get.service';
 import { EditService } from './edit.service';
-import { UtilsService } from './utils.service';
 import { EditInDto } from './dto/edit.in.dto';
+import { CacheService } from '../cache/cache.service';
 
 @Controller()
 export class GalleryController {
     constructor(
         private getService: GetService,
         private editService: EditService,
-        private utilsService: UtilsService
+        private cacheService: CacheService
     ) {}
 
     @Get(['get', 'get/*path'])
@@ -67,14 +67,11 @@ export class GalleryController {
         return { success: true };
     }
 
-    // TODO: Purge memory cache
-    @Post('edit/update-sort-albums-files')
+    @Post('invalidate-cache')
     @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
-    async updateSortAlbumsFiles(
-        @Body() { files }: { files: FileModel[] }
-    ): Promise<{ success: boolean }> {
-        await this.utilsService.sortAndSaveAlbumsAndFiles(files);
+    async invalidateCache(): Promise<{ success: boolean }> {
+        await this.cacheService.invalidateAll();
 
         return { success: true };
     }
