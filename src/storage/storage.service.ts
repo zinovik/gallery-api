@@ -2,6 +2,7 @@ import { Storage } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
 import {
     AddedAlbum,
+    AddedFile,
     AlbumModel,
     FileModel,
     UpdatedAlbum,
@@ -342,6 +343,16 @@ export class StorageService {
         await this.firestoreService.writeFirestoreDocuments<AlbumModel>(
             FIRESTORE_ALBUMS_COLLECTION,
             appliedUpdatesAlbums,
+            FIRESTORE_ALBUMS_KEY_NAME
+        );
+    }
+
+    async addFiles(files?: AddedFile[]) {
+        if (!files || files.length === 0) return;
+
+        await this.firestoreService.writeFirestoreDocuments<FileModel>(
+            FIRESTORE_FILES_COLLECTION,
+            files,
             FIRESTORE_ALBUMS_KEY_NAME
         );
     }

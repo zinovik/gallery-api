@@ -20,7 +20,7 @@ export class GetService {
     async get(
         path: string,
         userAccesses: string[],
-        accessedPath: string,
+        accessedPath: string | undefined,
         isHomeOnly: boolean,
         isHomeInclude: boolean,
         dateRanges?: string[][]
@@ -28,7 +28,6 @@ export class GetService {
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
-        console.time('get');
         const [storageFilePaths, filesWithoutUrls, albums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
             this.storageService.getFiles(),
@@ -44,23 +43,49 @@ export class GetService {
         );
         console.timeEnd('getPopulatedFilesWithoutUrls + sortFiles');
 
+        const directlyAccessiblePaths = albums
+            .filter(
+                (album) =>
+                    album.accessesParent &&
+                    hasAccess(
+                        userAccesses,
+                        album.accesses,
+                        album.path,
+                        accessedPath
+                    )
+            )
+            .map((album) => album.path);
+
+        const accessibleAlbums = albums.filter((album) =>
+            hasAccess(
+                userAccesses,
+                album.accesses,
+                album.path,
+                accessedPath,
+                directlyAccessiblePaths
+            )
+        );
+
+        const accessibleFilesWithoutUrls = allFiles.filter((file) =>
+            hasAccess(
+                userAccesses,
+                file.accesses,
+                file.path,
+                accessedPath,
+                directlyAccessiblePaths
+            )
+        );
+
         const filePaths: string[] = [
-            ...new Set(allFiles.map((file) => file.path)),
+            ...new Set(accessibleFilesWithoutUrls.map((file) => file.path)),
         ];
 
         console.time('sortAlbums');
-        const allAlbums = sortAlbums(
-            this.getPopulatedAlbums(filePaths, albums),
-            allFiles
+        const populatedAlbums = sortAlbums(
+            this.getPopulatedAlbums(filePaths, accessibleAlbums),
+            accessibleFilesWithoutUrls
         );
         console.timeEnd('sortAlbums');
-
-        const accessibleFilesWithoutUrls = allFiles.filter((file) =>
-            hasAccess(userAccesses, file.accesses, file.path, accessedPath)
-        );
-        const accessibleAlbums = allAlbums.filter((album) =>
-            hasAccess(userAccesses, album.accesses, album.path, accessedPath)
-        );
 
         const filteredFiles = isHomeOnly
             ? []
@@ -76,21 +101,21 @@ export class GetService {
         );
         console.timeEnd('signedUrlsMap');
 
-        const result = {
+        return {
             files: filteredFiles.map((file) => ({
                 ...file,
                 url: signedUrlsMap[file.filename] || '',
             })),
 
             albums: (path || isHomeOnly
-                ? accessibleAlbums.filter(
+                ? populatedAlbums.filter(
                       (album) =>
                           ((isHomeInclude || isHomeOnly) &&
                               this.isTopLevelPath(album.path)) ||
                           (path &&
                               this.isThisOrChildOrParentPath(album.path, path))
                   )
-                : accessibleAlbums
+                : populatedAlbums
             ).map((album) => ({
                 ...album,
                 ...(this.isTopLevelPath(album.path)
@@ -103,10 +128,6 @@ export class GetService {
                     : {}),
             })),
         };
-
-        console.timeEnd('get');
-
-        return result;
     }
 
     private getPopulatedFilesWithoutUrls(

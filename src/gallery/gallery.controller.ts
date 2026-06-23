@@ -44,7 +44,7 @@ export class GalleryController {
         user?: User;
     }> {
         const userAccesses = request.user?.accesses || [];
-        const accessedPath = request.accessedPath || '';
+        const accessedPath = request.accessedPath;
 
         return {
             ...(await this.getService.get(

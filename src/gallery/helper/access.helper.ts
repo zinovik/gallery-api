@@ -1,5 +1,3 @@
-import { FileModel } from '../../common/album-file.types';
-
 const ACCESS_ADMIN = 'admin';
 const ACCESS_PUBLIC = 'public';
 
@@ -7,13 +5,24 @@ export const hasAccess = (
     userAccesses: string[],
     targetAccesses: string[] = [],
     path: string,
-    accessedPath: string | ''
+    accessedPath: string | undefined,
+    allAccessiblePaths: string[] = []
 ) => {
     if (
         accessedPath &&
         (path === accessedPath ||
             path.startsWith(`${accessedPath}/`) ||
             accessedPath.startsWith(`${path}/`))
+    ) {
+        return true;
+    }
+
+    if (
+        targetAccesses.length === 0 &&
+        allAccessiblePaths.some(
+            (accessiblePath) =>
+                path === accessiblePath || path.startsWith(`${accessiblePath}/`)
+        )
     ) {
         return true;
     }

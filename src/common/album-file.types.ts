@@ -5,6 +5,7 @@ export interface AlbumModel {
     text?: string | string[];
     order?: number;
     accesses?: string[];
+    accessesParent?: boolean;
 }
 
 export interface FileModel {
@@ -47,6 +48,14 @@ export interface RemovedFile {
 export interface AddedAlbum {
     path: string;
     title: string;
+    text?: string | string[];
+    accesses?: string[];
+}
+
+export interface AddedFile {
+    filename: string;
+    path: string;
+    description?: string;
     text?: string | string[];
     accesses?: string[];
 }
