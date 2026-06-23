@@ -84,7 +84,10 @@ export const sortAlbums = (
                 // sub albums of one album
                 const diffPath1Order = pathOrderMap.get(a1Prefix);
                 const diffPath2Order = pathOrderMap.get(a2Prefix);
-                if (diffPath1Order || diffPath2Order) {
+                if (
+                    diffPath1Order !== undefined ||
+                    diffPath2Order !== undefined
+                ) {
                     if (diffPath2Order === undefined) return -1;
                     if (diffPath1Order === undefined) return 1;
                     return diffPath1Order - diffPath2Order;
@@ -94,7 +97,12 @@ export const sortAlbums = (
                 return collator.compare(a1PathParts[i], a2PathParts[i]);
             }
         }
-        return 0;
+
+        if (a1PathParts.length !== a2PathParts.length) {
+            return a1PathParts.length - a2PathParts.length;
+        }
+
+        return collator.compare(a1.path, a2.path);
     });
 };
 

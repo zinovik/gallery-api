@@ -287,7 +287,7 @@ export class StorageService {
         });
 
         await this.firestoreService.writeFirestoreDocuments(
-            FIRESTORE_ALBUMS_COLLECTION,
+            FIRESTORE_FILES_COLLECTION,
             appliedUpdatesFiles,
             FIRESTORE_FILES_KEY_NAME
         );
@@ -353,7 +353,7 @@ export class StorageService {
         await this.firestoreService.writeFirestoreDocuments<FileModel>(
             FIRESTORE_FILES_COLLECTION,
             files,
-            FIRESTORE_ALBUMS_KEY_NAME
+            FIRESTORE_FILES_KEY_NAME
         );
     }
 
