@@ -46,7 +46,7 @@ export class GetService {
         const directlyAccessiblePaths = albums
             .filter(
                 (album) =>
-                    album.accessesParent &&
+                    album.accessesParent && // TODO: Replace with defaultAccesses!
                     hasAccess(
                         userAccesses,
                         album.accesses,

@@ -10,23 +10,33 @@ import {
 } from '../common/album-file.types';
 import { CacheService } from '../cache/cache.service';
 import { FirestoreService } from '../firestore/firestore.service';
+import { Timestamp } from '@google-cloud/firestore';
 
-const BUCKET_NAME_FILES = 'gallery-files';
+const BUCKET_NAME_FILES = 'gallery-files' as const;
 
-const FIRESTORE_FILES_COLLECTION = 'files';
-const FIRESTORE_FILES_KEY_NAME = 'filename';
-const FIRESTORE_ALBUMS_COLLECTION = 'albums';
-const FIRESTORE_ALBUMS_KEY_NAME = 'path';
+const FIRESTORE_FILES_COLLECTION = 'files' as const;
+const FIRESTORE_FILES_KEY_NAME = 'filename' as const;
+const FIRESTORE_ALBUMS_COLLECTION = 'albums' as const;
+const FIRESTORE_ALBUMS_KEY_NAME = 'path' as const;
 
-const FIRESTORE_SIGNED_URLS_COLLECTION = 'signed-urls';
-const FIRESTORE_SIGNED_URLS_KEY_NAME = 'storagePath';
+const FIRESTORE_SIGNED_URLS_COLLECTION = 'signed-urls' as const;
+const FIRESTORE_SIGNED_URLS_KEY_NAME = 'storagePath' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
 
-type SignedUrlModel = {
+interface SignedUrlModel {
     [FIRESTORE_SIGNED_URLS_KEY_NAME]: string;
     url: string;
-};
+}
+
+interface SignedUrlModelRead extends SignedUrlModel {
+    expiresAt: Timestamp;
+}
+
+interface InMemorySignedUrlModel {
+    url: string;
+    expiresAt: number;
+}
 
 @Injectable()
 export class StorageService {
@@ -80,6 +90,8 @@ export class StorageService {
     async getSignedUrlsMap(
         filenames: string[]
     ): Promise<Record<string, string>> {
+        const now = Date.now();
+
         const filePaths = await this.getStorageFilePaths();
 
         const pathMap = Object.fromEntries(
@@ -90,58 +102,68 @@ export class StorageService {
         const filenamesWithoutInMemoryCacheUrls: string[] = [];
         const CACHE_KEY = 'signed-urls-map';
         const inMemoryCacheSignedUrlsMap = {
-            ...(await this.cacheService.get<Record<string, string>>(
-                CACHE_KEY,
-                true
-            )),
+            ...(await this.cacheService.get<
+                Record<string, InMemorySignedUrlModel>
+            >(CACHE_KEY, true)),
         };
 
         filenames.forEach((filename) => {
-            const url = inMemoryCacheSignedUrlsMap[pathMap[filename]];
-            if (url) signedUrlsMap[filename] = url;
+            const signedUrl = inMemoryCacheSignedUrlsMap[pathMap[filename]];
+            if (signedUrl && signedUrl.expiresAt > now)
+                signedUrlsMap[filename] = signedUrl.url;
             else filenamesWithoutInMemoryCacheUrls.push(filename);
         });
 
-        if (filenamesWithoutInMemoryCacheUrls.length === 0)
+        if (filenamesWithoutInMemoryCacheUrls.length === 0) {
             return signedUrlsMap;
+        }
 
-        const dbUrls =
-            await this.firestoreService.getFirestoreDocuments<SignedUrlModel>(
+        const dbSignedUrls =
+            await this.firestoreService.getFirestoreDocuments<SignedUrlModelRead>(
                 FIRESTORE_SIGNED_URLS_COLLECTION,
-                filenamesWithoutInMemoryCacheUrls.map((f) => pathMap[f]),
+                filenamesWithoutInMemoryCacheUrls.map(
+                    (filename) => pathMap[filename]
+                ),
                 FIRESTORE_SIGNED_URLS_KEY_NAME
             );
 
-        const dbCacheSignedUrls: Record<string, string> = {};
-        dbUrls.forEach((dbUrl) => {
-            dbCacheSignedUrls[dbUrl[FIRESTORE_SIGNED_URLS_KEY_NAME]] =
-                dbUrl.url;
+        const dbSignedUrlsMap: Record<string, SignedUrlModelRead> = {};
+        dbSignedUrls.forEach((dbSignedUrl) => {
+            dbSignedUrlsMap[dbSignedUrl[FIRESTORE_SIGNED_URLS_KEY_NAME]] =
+                dbSignedUrl;
         });
 
-        const filenamesWithoutAnyCacheUrls: string[] = [];
+        const filenamesWithoutSignedUrls: string[] = [];
 
         filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
-            const url = dbCacheSignedUrls[pathMap[filename]];
-            if (url) {
-                signedUrlsMap[filename] = url;
-                inMemoryCacheSignedUrlsMap[pathMap[filename]] = url;
-            } else filenamesWithoutAnyCacheUrls.push(filename);
+            const dbSignedUrl = dbSignedUrlsMap[pathMap[filename]];
+            if (dbSignedUrl && dbSignedUrl.expiresAt.toMillis() > now) {
+                signedUrlsMap[filename] = dbSignedUrl.url;
+                inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
+                    url: dbSignedUrl.url,
+                    expiresAt: dbSignedUrl.expiresAt.toMillis(),
+                };
+            } else filenamesWithoutSignedUrls.push(filename);
         });
 
-        if (filenamesWithoutAnyCacheUrls.length === 0) return signedUrlsMap;
+        if (filenamesWithoutSignedUrls.length === 0) {
+            await this.cacheService.set(
+                CACHE_KEY,
+                inMemoryCacheSignedUrlsMap,
+                true
+            );
+
+            return signedUrlsMap;
+        }
 
         const newSignedUrls: SignedUrlModel[] = [];
 
         console.time(
-            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutAnyCacheUrls.length})`
+            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
         );
         const batchSize = 5;
-        for (
-            let i = 0;
-            i < filenamesWithoutAnyCacheUrls.length;
-            i += batchSize
-        ) {
-            const batch = filenamesWithoutAnyCacheUrls.slice(i, i + batchSize);
+        for (let i = 0; i < filenamesWithoutSignedUrls.length; i += batchSize) {
+            const batch = filenamesWithoutSignedUrls.slice(i, i + batchSize);
 
             await Promise.all(
                 batch.map(async (filename) => {
@@ -153,7 +175,10 @@ export class StorageService {
 
                     signedUrlsMap[filename] = url;
                     if (url) {
-                        inMemoryCacheSignedUrlsMap[pathMap[filename]] = url;
+                        inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
+                            url,
+                            expiresAt: now + URL_TTL,
+                        };
                         newSignedUrls.push({
                             [FIRESTORE_SIGNED_URLS_KEY_NAME]: pathMap[filename],
                             url: signedUrlsMap[filename],
@@ -163,10 +188,10 @@ export class StorageService {
             );
         }
         console.timeEnd(
-            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutAnyCacheUrls.length})`
+            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
         );
 
-        await this.cacheService.set(
+        await this.cacheService.set<Record<string, InMemorySignedUrlModel>>(
             CACHE_KEY,
             inMemoryCacheSignedUrlsMap,
             true
