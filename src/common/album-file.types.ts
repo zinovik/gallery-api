@@ -5,7 +5,7 @@ export interface AlbumModel {
     text?: string | string[];
     order?: number;
     accesses?: string[];
-    accessesParent?: boolean;
+    defaultAccesses?: string[];
 }
 
 export interface FileModel {
@@ -24,6 +24,7 @@ export interface AlbumDTO {
     defaultByDate?: true;
     order?: number;
     accesses?: string[];
+    resolvedAccesses?: string[];
     isDb?: true;
 }
 
@@ -34,6 +35,7 @@ export interface FileDTO {
     description?: string;
     text?: string | string[];
     accesses?: string[];
+    resolvedAccesses?: string[];
     isDb?: true;
 }
 

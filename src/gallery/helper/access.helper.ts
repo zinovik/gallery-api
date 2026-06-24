@@ -1,28 +1,41 @@
+import { AlbumModel } from '../../common/album-file.types';
+
 const ACCESS_ADMIN = 'admin';
 const ACCESS_PUBLIC = 'public';
+
+export const resolveAccesses = (
+    accesses: string[] | undefined,
+    path: string,
+    albums: AlbumModel[]
+): string[] | undefined => {
+    if (accesses?.length) {
+        return accesses;
+    }
+
+    while (path) {
+        const parent = albums.find((a) => a.path === path);
+
+        if (parent?.defaultAccesses) {
+            return parent.defaultAccesses;
+        }
+
+        path = path.substring(0, path.lastIndexOf('/'));
+    }
+
+    return undefined;
+};
 
 export const hasAccess = (
     userAccesses: string[],
     targetAccesses: string[] = [],
     path: string,
-    accessedPath: string | undefined,
-    allAccessiblePaths: string[] = []
+    accessedPath: string | undefined
 ) => {
     if (
         accessedPath &&
         (path === accessedPath ||
             path.startsWith(`${accessedPath}/`) ||
             accessedPath.startsWith(`${path}/`))
-    ) {
-        return true;
-    }
-
-    if (
-        targetAccesses.length === 0 &&
-        allAccessiblePaths.some(
-            (accessiblePath) =>
-                path === accessiblePath || path.startsWith(`${accessiblePath}/`)
-        )
     ) {
         return true;
     }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
-import { hasAccess } from './helper/access.helper';
+import { hasAccess, resolveAccesses } from './helper/access.helper';
 import { AlbumDTO, FileDTO } from '../common/album-file.types';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
 
@@ -28,51 +28,51 @@ export class GetService {
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
-        const [storageFilePaths, filesWithoutUrls, albums] = await Promise.all([
+        const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
             this.storageService.getFiles(),
             this.storageService.getAlbums(),
         ]);
 
-        console.time('getPopulatedFilesWithoutUrls + sortFiles');
-        const allFiles = sortFiles(
-            this.getPopulatedFilesWithoutUrls(
-                storageFilePaths,
-                filesWithoutUrls
-            )
+        console.time('populateFiles + sortFiles');
+        const populatedFiles = sortFiles(
+            this.populateFiles(storageFilePaths, dbFiles)
         );
-        console.timeEnd('getPopulatedFilesWithoutUrls + sortFiles');
+        console.timeEnd('populateFiles + sortFiles');
 
-        const directlyAccessiblePaths = albums
-            .filter(
-                (album) =>
-                    album.accessesParent && // TODO: Replace with defaultAccesses!
-                    hasAccess(
-                        userAccesses,
-                        album.accesses,
-                        album.path,
-                        accessedPath
-                    )
-            )
-            .map((album) => album.path);
-
-        const accessibleAlbums = albums.filter((album) =>
-            hasAccess(
-                userAccesses,
+        const albumsWithAccesses = dbAlbums.map((album) => ({
+            ...album,
+            resolvedAccesses: resolveAccesses(
                 album.accesses,
                 album.path,
-                accessedPath,
-                directlyAccessiblePaths
+                dbAlbums
+            ),
+        }));
+
+        const filesWithAccesses = populatedFiles.map((file) => ({
+            ...file,
+            resolvedAccesses: resolveAccesses(
+                file.accesses,
+                file.path,
+                dbAlbums
+            ),
+        }));
+
+        const accessibleAlbums = albumsWithAccesses.filter((album) =>
+            hasAccess(
+                userAccesses,
+                album.resolvedAccesses,
+                album.path,
+                accessedPath
             )
         );
 
-        const accessibleFilesWithoutUrls = allFiles.filter((file) =>
+        const accessibleFilesWithoutUrls = filesWithAccesses.filter((file) =>
             hasAccess(
                 userAccesses,
-                file.accesses,
+                file.resolvedAccesses,
                 file.path,
-                accessedPath,
-                directlyAccessiblePaths
+                accessedPath
             )
         );
 
@@ -80,12 +80,12 @@ export class GetService {
             ...new Set(accessibleFilesWithoutUrls.map((file) => file.path)),
         ];
 
-        console.time('sortAlbums');
+        console.time('populateAlbums + sortAlbums');
         const populatedAlbums = sortAlbums(
-            this.getPopulatedAlbums(filePaths, accessibleAlbums),
+            this.populateAlbums(filePaths, accessibleAlbums),
             accessibleFilesWithoutUrls
         );
-        console.timeEnd('sortAlbums');
+        console.timeEnd('populateAlbums + sortAlbums');
 
         const filteredFiles = isHomeOnly
             ? []
@@ -130,7 +130,7 @@ export class GetService {
         };
     }
 
-    private getPopulatedFilesWithoutUrls(
+    private populateFiles(
         storageFilePaths: string[],
         filesWithoutUrls: Omit<FileDTO, 'url'>[]
     ): Omit<FileDTO, 'url'>[] {
@@ -168,7 +168,7 @@ export class GetService {
         });
     }
 
-    private getPopulatedAlbums(
+    private populateAlbums(
         filePaths: string[],
         albums: AlbumDTO[]
     ): AlbumDTO[] {
