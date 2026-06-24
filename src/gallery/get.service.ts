@@ -19,7 +19,8 @@ export class GetService {
 
     async get(
         path: string,
-        userAccesses: string[],
+        userAccesses: string[] = [],
+        isEditAccess: boolean | undefined,
         accessedPath: string | undefined,
         isHomeOnly: boolean,
         isHomeInclude: boolean,
@@ -118,6 +119,12 @@ export class GetService {
                 : populatedAlbums
             ).map((album) => ({
                 ...album,
+                ...(isEditAccess
+                    ? {}
+                    : {
+                          accesses: undefined,
+                          resolvedAccesses: undefined,
+                      }),
                 ...(this.isTopLevelPath(album.path)
                     ? {
                           filesAmount: accessibleFilesWithoutUrls.filter(

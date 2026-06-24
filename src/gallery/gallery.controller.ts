@@ -43,18 +43,18 @@ export class GalleryController {
         files: FileDTO[];
         user?: User;
     }> {
-        const userAccesses = request.user?.accesses || [];
-        const accessedPath = request.accessedPath;
+        const data = await this.getService.get(
+            (path || '').replace(/,/g, '/'),
+            request.user?.accesses,
+            request.user?.isEditAccess,
+            request.accessedPath,
+            home === 'only',
+            home === 'include',
+            dateRanges?.split(',').map((dateRange) => dateRange.split('-'))
+        );
 
         return {
-            ...(await this.getService.get(
-                (path || '').replace(/,/g, '/'),
-                userAccesses,
-                accessedPath,
-                home === 'only',
-                home === 'include',
-                dateRanges?.split(',').map((dateRange) => dateRange.split('-'))
-            )),
+            ...data,
             user: request.user,
         };
     }
