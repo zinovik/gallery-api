@@ -4,15 +4,6 @@ import { hasAccess, resolveAccesses } from './helper/access.helper';
 import { AlbumDTO, FileDTO } from '../common/album-file.types';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
 
-// will be moved to db
-const PATH_MAPPINGS: Record<string, string> = {
-    'board-games-pure-games': 'board-games',
-    'unguja-zanzibar-tanzania': 'zanzibar',
-    'warszawska-dycha-payed': 'warszawska-dycha',
-    'belarusian-cup-final':
-        'football/belarus/belarusian-cup-2017-2018/final-bate-dynamo-brest',
-};
-
 @Injectable()
 export class GetService {
     constructor(private readonly storageService: StorageService) {}
@@ -96,11 +87,11 @@ export class GetService {
                   dateRanges,
               });
 
-        console.time('signedUrlsMap');
+        console.time('getSignedUrlsMap');
         const signedUrlsMap = await this.storageService.getSignedUrlsMap(
             filteredFiles.map((file) => file.filename)
         );
-        console.timeEnd('signedUrlsMap');
+        console.timeEnd('getSignedUrlsMap');
 
         return {
             files: filteredFiles.map((file) => ({
@@ -166,7 +157,7 @@ export class GetService {
 
             return {
                 filename,
-                path: PATH_MAPPINGS[path] ?? path,
+                path,
                 description: file?.description,
                 text: file?.text,
                 accesses: file?.accesses,
