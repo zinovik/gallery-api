@@ -87,9 +87,7 @@ export class StorageService {
         return data;
     }
 
-    async getSignedUrlsMap(
-        filenames: string[]
-    ): Promise<Record<string, string>> {
+    async getSignedUrlsMap(filenames: string[]): Promise<Map<string, string>> {
         const now = Date.now();
 
         const filePaths = await this.getStorageFilePaths();
@@ -98,7 +96,7 @@ export class StorageService {
             filePaths.map((path) => [path.split('/').pop(), path])
         );
 
-        const signedUrlsMap: Record<string, string> = {};
+        const signedUrlsMap = new Map<string, string>();
         const filenamesWithoutInMemoryCacheUrls: string[] = [];
         const CACHE_KEY = 'signed-urls-map';
         const inMemoryCacheSignedUrlsMap = {
@@ -110,7 +108,7 @@ export class StorageService {
         filenames.forEach((filename) => {
             const signedUrl = inMemoryCacheSignedUrlsMap[pathMap[filename]];
             if (signedUrl && signedUrl.expiresAt > now)
-                signedUrlsMap[filename] = signedUrl.url;
+                signedUrlsMap.set(filename, signedUrl.url);
             else filenamesWithoutInMemoryCacheUrls.push(filename);
         });
 
@@ -138,7 +136,7 @@ export class StorageService {
         filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
             const dbSignedUrl = dbSignedUrlsMap[pathMap[filename]];
             if (dbSignedUrl && dbSignedUrl.expiresAt.toMillis() > now) {
-                signedUrlsMap[filename] = dbSignedUrl.url;
+                signedUrlsMap.set(filename, dbSignedUrl.url);
                 inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
                     url: dbSignedUrl.url,
                     expiresAt: dbSignedUrl.expiresAt.toMillis(),
@@ -173,7 +171,7 @@ export class StorageService {
 
                     const url = await this.getSignedUrl(filePath);
 
-                    signedUrlsMap[filename] = url;
+                    signedUrlsMap.set(filename, url);
                     if (url) {
                         inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
                             url,
@@ -181,7 +179,7 @@ export class StorageService {
                         };
                         newSignedUrls.push({
                             [FIRESTORE_SIGNED_URLS_KEY_NAME]: pathMap[filename],
-                            url: signedUrlsMap[filename],
+                            url,
                         });
                     }
                 })

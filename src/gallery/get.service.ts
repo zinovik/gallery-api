@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../storage/storage.service';
 import { hasAccess, resolveAccesses } from './helper/access.helper';
-import { AlbumDTO, FileDTO } from '../common/album-file.types';
+import {
+    AlbumDTO,
+    AlbumModel,
+    FileDTO,
+    FileModel,
+} from '../common/album-file.types';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
 
 @Injectable()
@@ -96,7 +101,7 @@ export class GetService {
         return {
             files: filteredFiles.map((file) => ({
                 ...file,
-                url: signedUrlsMap[file.filename] || '',
+                url: signedUrlsMap.get(file.filename) || '',
             })),
 
             albums: (path || isHomeOnly
@@ -115,6 +120,8 @@ export class GetService {
                     : {
                           accesses: undefined,
                           resolvedAccesses: undefined,
+                          defaultAccesses: undefined,
+                          isDb: undefined,
                       }),
                 ...(this.isTopLevelPath(album.path)
                     ? {
@@ -130,17 +137,17 @@ export class GetService {
 
     private populateFiles(
         storageFilePaths: string[],
-        filesWithoutUrls: Omit<FileDTO, 'url'>[]
-    ): Omit<FileDTO, 'url'>[] {
-        const filesWithoutUrlsMap: Record<string, Omit<FileDTO, 'url'>> = {};
+        filesWithoutUrls: FileModel[]
+    ): (FileModel & { path: string; isDb?: true })[] {
+        const filesWithoutUrlsMap = new Map<string, FileModel>();
 
         filesWithoutUrls.forEach((file) => {
-            filesWithoutUrlsMap[file.filename] = file;
+            filesWithoutUrlsMap.set(file.filename, file);
         });
 
         return storageFilePaths.map((storageFilePath) => {
             const filename = storageFilePath.split('/').pop() ?? '';
-            const file = filesWithoutUrlsMap[filename];
+            const file = filesWithoutUrlsMap.get(filename);
 
             const path =
                 file?.path ??
@@ -156,35 +163,31 @@ export class GetService {
                     .toLowerCase();
 
             return {
+                ...(file ? { ...file, isDb: true } : {}),
                 filename,
                 path,
-                description: file?.description,
-                text: file?.text,
-                accesses: file?.accesses,
-                ...(file ? { isDb: true } : {}),
             };
         });
     }
 
     private populateAlbums(
         filePaths: string[],
-        albums: AlbumDTO[]
-    ): AlbumDTO[] {
-        const albumsMap: Record<string, AlbumDTO> = {};
+        albums: AlbumModel[]
+    ): (AlbumModel & { title: string; isDb?: true })[] {
+        const albumsMap = new Map<string, AlbumModel>();
+        albums.forEach((album) => albumsMap.set(album.path, album));
 
-        albums.forEach((album) => {
-            albumsMap[album.path] = album;
-        });
-
-        const populatedAlbums: AlbumDTO[] = [];
+        const populatedAlbums: (AlbumModel & { title: string; isDb?: true })[] =
+            [];
         const usedAlbums: Set<string> = new Set();
 
         filePaths.forEach((filePath) => {
-            const album = albumsMap[filePath];
+            const album = albumsMap.get(filePath);
 
             if (album) usedAlbums.add(album.path);
 
             populatedAlbums.push({
+                ...(album ? { ...album, isDb: true } : {}),
                 path: filePath,
                 title:
                     (album?.title ??
@@ -194,17 +197,20 @@ export class GetService {
                             .replace(/-/g, ' ')
                             .replace(/\b\w/g, (c) => c.toUpperCase())) ||
                     'untitled',
-                text: album?.text,
-                defaultByDate: album?.defaultByDate,
-                order: album?.order,
-                accesses: album?.accesses,
-                ...(album ? { isDb: true } : {}),
             });
         });
 
         albums.forEach((album) => {
             if (!usedAlbums.has(album.path)) {
-                populatedAlbums.push(album);
+                populatedAlbums.push({
+                    ...album,
+                    title:
+                        album.title ??
+                        album.path
+                            .replace(/-/g, ' ')
+                            .replace(/\b\w/g, (c) => c.toUpperCase()),
+                    isDb: true,
+                });
             }
         });
 

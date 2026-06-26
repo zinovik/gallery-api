@@ -1,6 +1,6 @@
 export interface AlbumModel {
     path: string;
-    title: string;
+    title?: string;
     defaultByDate?: true;
     text?: string | string[];
     order?: number;
@@ -9,8 +9,8 @@ export interface AlbumModel {
 }
 
 export interface FileModel {
-    path: string;
     filename: string;
+    path?: string;
     description?: string;
     text?: string | string[];
     accesses?: string[];
@@ -25,6 +25,7 @@ export interface AlbumDTO {
     order?: number;
     accesses?: string[];
     resolvedAccesses?: string[];
+    defaultAccesses?: string[];
     isDb?: true;
 }
 
@@ -49,14 +50,14 @@ export interface RemovedFile {
 
 export interface AddedAlbum {
     path: string;
-    title: string;
+    title?: string;
     text?: string | string[];
     accesses?: string[];
 }
 
 export interface AddedFile {
     filename: string;
-    path: string;
+    path?: string;
     description?: string;
     text?: string | string[];
     accesses?: string[];
