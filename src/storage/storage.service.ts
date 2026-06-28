@@ -99,14 +99,14 @@ export class StorageService {
         const signedUrlsMap = new Map<string, string>();
         const filenamesWithoutInMemoryCacheUrls: string[] = [];
         const CACHE_KEY = 'signed-urls-map';
-        const inMemoryCacheSignedUrlsMap = {
-            ...(await this.cacheService.get<
-                Record<string, InMemorySignedUrlModel>
-            >(CACHE_KEY, true)),
-        };
+        const inMemoryCacheSignedUrlsMap =
+            (await this.cacheService.get<Map<string, InMemorySignedUrlModel>>(
+                CACHE_KEY,
+                true
+            )) ?? new Map<string, InMemorySignedUrlModel>();
 
         filenames.forEach((filename) => {
-            const signedUrl = inMemoryCacheSignedUrlsMap[pathMap[filename]];
+            const signedUrl = inMemoryCacheSignedUrlsMap.get(pathMap[filename]);
             if (signedUrl && signedUrl.expiresAt > now)
                 signedUrlsMap.set(filename, signedUrl.url);
             else filenamesWithoutInMemoryCacheUrls.push(filename);
@@ -125,22 +125,24 @@ export class StorageService {
                 FIRESTORE_SIGNED_URLS_KEY_NAME
             );
 
-        const dbSignedUrlsMap: Record<string, SignedUrlModelRead> = {};
+        const dbSignedUrlsMap = new Map<string, SignedUrlModelRead>();
         dbSignedUrls.forEach((dbSignedUrl) => {
-            dbSignedUrlsMap[dbSignedUrl[FIRESTORE_SIGNED_URLS_KEY_NAME]] =
-                dbSignedUrl;
+            dbSignedUrlsMap.set(
+                dbSignedUrl[FIRESTORE_SIGNED_URLS_KEY_NAME],
+                dbSignedUrl
+            );
         });
 
         const filenamesWithoutSignedUrls: string[] = [];
 
         filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
-            const dbSignedUrl = dbSignedUrlsMap[pathMap[filename]];
+            const dbSignedUrl = dbSignedUrlsMap.get(pathMap[filename]);
             if (dbSignedUrl && dbSignedUrl.expiresAt.toMillis() > now) {
                 signedUrlsMap.set(filename, dbSignedUrl.url);
-                inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
+                inMemoryCacheSignedUrlsMap.set(pathMap[filename], {
                     url: dbSignedUrl.url,
                     expiresAt: dbSignedUrl.expiresAt.toMillis(),
-                };
+                });
             } else filenamesWithoutSignedUrls.push(filename);
         });
 
@@ -173,10 +175,10 @@ export class StorageService {
 
                     signedUrlsMap.set(filename, url);
                     if (url) {
-                        inMemoryCacheSignedUrlsMap[pathMap[filename]] = {
+                        inMemoryCacheSignedUrlsMap.set(pathMap[filename], {
                             url,
                             expiresAt: now + URL_TTL,
-                        };
+                        });
                         newSignedUrls.push({
                             [FIRESTORE_SIGNED_URLS_KEY_NAME]: pathMap[filename],
                             url,
@@ -189,7 +191,7 @@ export class StorageService {
             `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
         );
 
-        await this.cacheService.set<Record<string, InMemorySignedUrlModel>>(
+        await this.cacheService.set<Map<string, InMemorySignedUrlModel>>(
             CACHE_KEY,
             inMemoryCacheSignedUrlsMap,
             true
@@ -296,10 +298,10 @@ export class StorageService {
                     ? { path: updatedFile.path }
                     : {}),
                 ...(updatedFile.description !== undefined
-                    ? { description: updatedFile.description }
+                    ? { description: updatedFile.description || undefined }
                     : {}),
                 ...(updatedFile.text !== undefined
-                    ? { text: updatedFile.text }
+                    ? { text: updatedFile.text || undefined }
                     : {}),
                 ...(updatedFile.accesses !== undefined
                     ? {
@@ -328,18 +330,20 @@ export class StorageService {
                 FIRESTORE_ALBUMS_KEY_NAME
             );
 
-        const updatedAlbumsMap: Record<string, Omit<UpdatedAlbum, 'path'>> = {};
+        const updatedAlbumsMap = new Map<string, Omit<UpdatedAlbum, 'path'>>();
         updatedAlbums.forEach((updatedAlbum) => {
             const { path, ...rest } = updatedAlbum;
 
-            updatedAlbumsMap[path] = {
-                ...(updatedAlbumsMap[path] ?? {}),
+            updatedAlbumsMap.set(path, {
+                ...(updatedAlbumsMap.get(path) ?? {}),
                 ...rest,
-            };
+            });
         });
 
         const appliedUpdatesAlbums: AlbumModel[] = dbAlbums.map((dbAlbum) => {
-            const updatedAlbum = updatedAlbumsMap[dbAlbum.path];
+            const updatedAlbum = updatedAlbumsMap.get(dbAlbum.path);
+
+            if (!updatedAlbum) return dbAlbum;
 
             return {
                 ...dbAlbum,
@@ -347,13 +351,16 @@ export class StorageService {
                     ? { path: updatedAlbum.newPath }
                     : {}),
                 ...(updatedAlbum.title !== undefined
-                    ? { title: updatedAlbum.title }
+                    ? { title: updatedAlbum.title || undefined }
                     : {}),
                 ...(updatedAlbum.text !== undefined
-                    ? { text: updatedAlbum.text }
+                    ? { text: updatedAlbum.text || undefined }
+                    : {}),
+                ...(updatedAlbum.defaultByDate !== undefined
+                    ? { defaultByDate: updatedAlbum.defaultByDate || undefined }
                     : {}),
                 ...(updatedAlbum.order !== undefined
-                    ? { order: updatedAlbum.order }
+                    ? { order: updatedAlbum.order || undefined }
                     : {}),
                 ...(updatedAlbum.accesses !== undefined
                     ? {

@@ -11,10 +11,10 @@ interface DbCache<T> {
 
 @Injectable()
 export class CacheService {
-    private readonly cache: Record<
+    private readonly cache = new Map<
         string,
         { data: unknown; expiresAt?: Date }
-    > = {};
+    >();
 
     constructor(private readonly firestoreService: FirestoreService) {}
 
@@ -46,9 +46,9 @@ export class CacheService {
     async invalidateAll(isInMemoryOnly?: true): Promise<void> {
         console.time('cache invalidation');
 
-        Object.keys(this.cache).forEach((key) => {
-            delete this.cache[key];
-        });
+        for (const key of this.cache.keys()) {
+            this.cache.delete(key);
+        }
 
         if (!isInMemoryOnly) {
             await this.firestoreService.removeAllFirestoreDocuments(
@@ -60,12 +60,12 @@ export class CacheService {
     }
 
     private getInMemory<T>(key: string): T | null {
-        const cache = this.cache[key];
+        const cache = this.cache.get(key);
 
         if (!cache) return null;
 
         if (cache.expiresAt && cache.expiresAt.getTime() <= Date.now()) {
-            delete this.cache[key];
+            this.cache.delete(key);
             return null;
         }
 
@@ -73,10 +73,10 @@ export class CacheService {
     }
 
     private setInMemory<T>(key: string, data: T, ttlMs?: number): void {
-        this.cache[key] = {
+        this.cache.set(key, {
             data,
             ...(ttlMs ? { expiresAt: new Date(Date.now() + ttlMs) } : {}),
-        };
+        });
     }
 
     private async getInDb<T>(key: string): Promise<T | null> {

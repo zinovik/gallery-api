@@ -68,6 +68,7 @@ export interface UpdatedAlbum {
     newPath?: string;
     title?: string;
     text?: string | string[];
+    defaultByDate?: boolean;
     order?: number;
     accesses?: string[];
 }
