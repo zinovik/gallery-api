@@ -292,16 +292,16 @@ export class StorageService {
         const appliedUpdatesFiles: FileModel[] = dbFiles.map((dbFile) => {
             const updatedFile = updatedFilesMap[dbFile.filename];
 
-            return {
+            const appliedUpdatesFile = {
                 ...dbFile,
                 ...(updatedFile.path !== undefined
                     ? { path: updatedFile.path }
                     : {}),
                 ...(updatedFile.description !== undefined
-                    ? { description: updatedFile.description || undefined }
+                    ? { description: updatedFile.description }
                     : {}),
                 ...(updatedFile.text !== undefined
-                    ? { text: updatedFile.text || undefined }
+                    ? { text: updatedFile.text }
                     : {}),
                 ...(updatedFile.accesses !== undefined
                     ? {
@@ -309,6 +309,15 @@ export class StorageService {
                       }
                     : {}),
             };
+
+            if (appliedUpdatesFile.path === '') delete appliedUpdatesFile.path;
+            if (appliedUpdatesFile.description === '')
+                delete appliedUpdatesFile.description;
+            if (appliedUpdatesFile.text === '') delete appliedUpdatesFile.text;
+            if (appliedUpdatesFile.accesses?.length === 0)
+                delete appliedUpdatesFile.accesses;
+
+            return appliedUpdatesFile;
         });
 
         await this.firestoreService.writeFirestoreDocuments(
@@ -345,22 +354,22 @@ export class StorageService {
 
             if (!updatedAlbum) return dbAlbum;
 
-            return {
+            const appliedUpdatesAlbum = {
                 ...dbAlbum,
                 ...(updatedAlbum.newPath !== undefined
                     ? { path: updatedAlbum.newPath }
                     : {}),
                 ...(updatedAlbum.title !== undefined
-                    ? { title: updatedAlbum.title || undefined }
+                    ? { title: updatedAlbum.title }
                     : {}),
                 ...(updatedAlbum.text !== undefined
-                    ? { text: updatedAlbum.text || undefined }
+                    ? { text: updatedAlbum.text }
                     : {}),
                 ...(updatedAlbum.defaultByDate !== undefined
-                    ? { defaultByDate: updatedAlbum.defaultByDate || undefined }
+                    ? { defaultByDate: true }
                     : {}),
                 ...(updatedAlbum.order !== undefined
-                    ? { order: updatedAlbum.order || undefined }
+                    ? { order: updatedAlbum.order }
                     : {}),
                 ...(updatedAlbum.accesses !== undefined
                     ? {
@@ -368,6 +377,19 @@ export class StorageService {
                       }
                     : {}),
             };
+
+            if (appliedUpdatesAlbum.title === '')
+                delete appliedUpdatesAlbum.title;
+            if (appliedUpdatesAlbum.text === '')
+                delete appliedUpdatesAlbum.text;
+            if (appliedUpdatesAlbum.defaultByDate === false)
+                delete appliedUpdatesAlbum.defaultByDate;
+            if (appliedUpdatesAlbum.order === 0)
+                delete appliedUpdatesAlbum.order;
+            if (appliedUpdatesAlbum.accesses?.length === 0)
+                delete appliedUpdatesAlbum.accesses;
+
+            return appliedUpdatesAlbum;
         });
 
         await this.firestoreService.writeFirestoreDocuments<AlbumModel>(

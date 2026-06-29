@@ -1,7 +1,7 @@
 export interface AlbumModel {
     path: string;
     title?: string;
-    defaultByDate?: true;
+    defaultByDate?: boolean;
     text?: string | string[];
     order?: number;
     accesses?: string[];
@@ -21,7 +21,7 @@ export interface AlbumDTO {
     title: string;
     text?: string | string[];
     filesAmount?: number;
-    defaultByDate?: true;
+    defaultByDate?: boolean;
     order?: number;
     accesses?: string[];
     resolvedAccesses?: string[];
