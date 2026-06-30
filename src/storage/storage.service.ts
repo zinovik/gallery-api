@@ -376,6 +376,11 @@ export class StorageService {
                           accesses: updatedAlbum.accesses,
                       }
                     : {}),
+                ...(updatedAlbum.defaultAccesses !== undefined
+                    ? {
+                          defaultAccesses: updatedAlbum.defaultAccesses,
+                      }
+                    : {}),
             };
 
             if (appliedUpdatesAlbum.title === '')
@@ -388,6 +393,8 @@ export class StorageService {
                 delete appliedUpdatesAlbum.order;
             if (appliedUpdatesAlbum.accesses?.length === 0)
                 delete appliedUpdatesAlbum.accesses;
+            if (appliedUpdatesAlbum.defaultAccesses?.length === 0)
+                delete appliedUpdatesAlbum.defaultAccesses;
 
             return appliedUpdatesAlbum;
         });

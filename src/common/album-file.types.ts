@@ -52,7 +52,10 @@ export interface AddedAlbum {
     path: string;
     title?: string;
     text?: string | string[];
+    defaultByDate?: boolean;
+    order?: number;
     accesses?: string[];
+    defaultAccesses?: string[];
 }
 
 export interface AddedFile {
@@ -71,6 +74,7 @@ export interface UpdatedAlbum {
     defaultByDate?: boolean;
     order?: number;
     accesses?: string[];
+    defaultAccesses?: string[];
 }
 
 export interface UpdatedFile {
