@@ -1,6 +1,6 @@
 // Reused for every comparison instead of being recreated implicitly by each
-// localeCompare() call - this is the biggest win for large arrays, since
-// constructing collator state per comparison is expensive.
+// localeCompare() call - this is the win for large arrays, since
+// constructing collator state per comparison can be expensive
 const collator = new Intl.Collator();
 
 export const sortAlbums = <
@@ -10,12 +10,6 @@ export const sortAlbums = <
     albums: A[],
     files: F[]
 ): A[] => {
-    // For every top-level path, find the filename of the last file (in
-    // original order) belonging to it. A single forward pass where later
-    // files overwrite earlier map entries gives the same result as
-    // `.find()` on a reversed copy of `files` - but in O(files.length)
-    // total instead of once per top-level pair compared during the sort
-    // below (previously up to O(albums.length * files.length)).
     const lastFilenameByTopPath = new Map<string, string>();
     for (const file of files) {
         const slashIndex = file.path.indexOf('/');
@@ -35,22 +29,16 @@ export const sortAlbums = <
                 : 0;
         });
 
-    // O(1) lookups instead of Array.prototype.indexOf, which is O(n) and
-    // was previously called twice per comparison in the main sort below.
     const topLevelIndex = new Map<string, number>();
     topLevelPathsOrdered.forEach((path, index) =>
         topLevelIndex.set(path, index)
     );
 
-    // Split each distinct path once and cache explicit order values up
-    // front, instead of re-deriving them on every comparison the sort
-    // performs (previously O(n log n) redundant `.split('/')` calls).
     const pathPartsByPath = new Map<string, string[]>();
     const pathOrderMap = new Map<string, number>();
     for (const album of albums) {
-        if (!pathPartsByPath.has(album.path)) {
-            pathPartsByPath.set(album.path, album.path.split('/'));
-        }
+        pathPartsByPath.set(album.path, album.path.split('/'));
+
         if (album.order !== undefined) {
             pathOrderMap.set(album.path, album.order);
         }
@@ -70,8 +58,6 @@ export const sortAlbums = <
         // the same root path
         // sub albums sorting
         const minPathParts = Math.min(a1PathParts.length, a2PathParts.length);
-        // Build prefixes incrementally (O(1) per step) instead of
-        // `slice(0, i + 1).join('/')` (O(i) per step) at the point of use.
         let a1Prefix = a1PathParts[0];
         let a2Prefix = a2PathParts[0];
         for (let i = 1; i < minPathParts; i++) {

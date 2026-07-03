@@ -43,7 +43,7 @@ export class AuthController {
         const user = await this.userService.findOne(email);
         const accessToken = await this.authService.createAccessToken(
             user.email,
-            user.isEditAccess,
+            user.isEditAccess ?? false,
             user.accesses,
             Math.floor(Math.random() * 10000),
             maxAge

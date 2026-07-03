@@ -1,4 +1,4 @@
-import { Firestore, FieldPath } from '@google-cloud/firestore';
+import { Firestore, FieldPath, Timestamp } from '@google-cloud/firestore';
 import { Injectable } from '@nestjs/common';
 
 const FIRESTORE_DB = 'gallery-db';
@@ -95,7 +95,7 @@ export class FirestoreService {
                     {
                         ...data,
                         ...(ttlMs && {
-                            expiresAt: new Date(Date.now() + ttlMs),
+                            expiresAt: Timestamp.fromMillis(Date.now() + ttlMs),
                         }),
                     }
                 );

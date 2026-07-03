@@ -6,14 +6,14 @@ const ACCESS_PUBLIC = 'public';
 export const resolveAccesses = (
     accesses: string[] | undefined,
     path: string,
-    albums: AlbumModel[]
+    albumsMap: Map<string, AlbumModel>
 ): string[] | undefined => {
     if (accesses?.length) {
         return accesses;
     }
 
     while (path) {
-        const parent = albums.find((a) => a.path === path);
+        const parent = albumsMap.get(path);
 
         if (parent?.defaultAccesses) {
             return parent.defaultAccesses;

@@ -25,37 +25,54 @@ export class GetService {
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
+        // GET RAW
+
         const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
             this.storageService.getFiles(),
             this.storageService.getAlbums(),
         ]);
 
-        console.time('populateFiles + sortFiles');
-        const populatedFiles = sortFiles(
-            this.populateFiles(storageFilePaths, dbFiles)
-        );
-        console.timeEnd('populateFiles + sortFiles');
+        // POPULATE AND SORT
 
-        const albumsWithAccesses = dbAlbums.map((album) => ({
+        console.time('populateFiles');
+        const populatedFiles = this.populateFiles(storageFilePaths, dbFiles);
+        console.timeEnd('populateFiles');
+
+        const filePaths: string[] = [
+            ...new Set(populatedFiles.map((file) => file.path)),
+        ];
+
+        console.time('populateAlbums');
+        const populatedAlbums = this.populateAlbums(filePaths, dbAlbums);
+        console.timeEnd('populateAlbums');
+
+        // RESOLVE ACCESS
+
+        const albumsMap = new Map(
+            populatedAlbums.map((album) => [album.path, album])
+        );
+        const albumsWithResolvedAccesses = populatedAlbums.map((album) => ({
             ...album,
             resolvedAccesses: resolveAccesses(
                 album.accesses,
                 album.path,
-                dbAlbums
+                albumsMap
             ),
         }));
 
-        const filesWithAccesses = populatedFiles.map((file) => ({
+        const filesWithResolvedAccesses = populatedFiles.map((file) => ({
             ...file,
             resolvedAccesses: resolveAccesses(
                 file.accesses,
                 file.path,
-                dbAlbums
+                albumsMap
             ),
         }));
 
-        const accessibleAlbums = albumsWithAccesses.filter((album) =>
+        // FILTER BY ACCESS
+
+        const accessibleAlbums = albumsWithResolvedAccesses.filter((album) =>
             hasAccess(
                 userAccesses,
                 album.resolvedAccesses,
@@ -64,33 +81,42 @@ export class GetService {
             )
         );
 
-        const accessibleFilesWithoutUrls = filesWithAccesses.filter((file) =>
-            hasAccess(
-                userAccesses,
-                file.resolvedAccesses,
-                file.path,
-                accessedPath
-            )
+        const accessibleFilesWithoutUrls = filesWithResolvedAccesses.filter(
+            (file) =>
+                hasAccess(
+                    userAccesses,
+                    file.resolvedAccesses,
+                    file.path,
+                    accessedPath
+                )
         );
 
-        const filePaths: string[] = [
-            ...new Set(accessibleFilesWithoutUrls.map((file) => file.path)),
-        ];
+        // SORT FILES
 
-        console.time('populateAlbums + sortAlbums');
-        const populatedAlbums = sortAlbums(
-            this.populateAlbums(filePaths, accessibleAlbums),
-            accessibleFilesWithoutUrls
-        );
-        console.timeEnd('populateAlbums + sortAlbums');
+        const sortedFiles = sortFiles(accessibleFilesWithoutUrls);
+
+        // FILTER BY PATH/DATE
 
         const filteredFiles = isHomeOnly
             ? []
             : this.filterFilesByPathAndDateRanges({
-                  files: accessibleFilesWithoutUrls,
+                  files: sortedFiles,
                   path,
                   dateRanges,
               });
+
+        const filteredAlbums =
+            path || isHomeOnly
+                ? accessibleAlbums.filter(
+                      (album) =>
+                          ((isHomeInclude || isHomeOnly) &&
+                              this.isRootPath(album.path)) ||
+                          (path &&
+                              this.isThisOrChildOrParentPath(album.path, path))
+                  )
+                : accessibleAlbums;
+
+        // GET SIGNED URLS
 
         console.time('getSignedUrlsMap');
         const signedUrlsMap = await this.storageService.getSignedUrlsMap(
@@ -98,23 +124,18 @@ export class GetService {
         );
         console.timeEnd('getSignedUrlsMap');
 
-        return {
-            files: filteredFiles.map((file) => ({
-                ...file,
-                url: signedUrlsMap.get(file.filename) || '',
-            })),
+        // CALCULATE FILE AMOUNTS AND STRIP EDIT-RELATED FIELDS
 
-            albums: (path || isHomeOnly
-                ? populatedAlbums.filter(
-                      (album) =>
-                          ((isHomeInclude || isHomeOnly) &&
-                              this.isTopLevelPath(album.path)) ||
-                          (path &&
-                              this.isThisOrChildOrParentPath(album.path, path))
-                  )
-                : populatedAlbums
-            ).map((album) => ({
+        const filesAmountsMap = this.getFilesAmountMap(
+            accessibleFilesWithoutUrls
+        );
+
+        const albums = filteredAlbums.map((album) => {
+            const filesAmount = filesAmountsMap.get(album.path) ?? 0;
+
+            return {
                 ...album,
+                ...(filesAmount > 0 ? { filesAmount: filesAmount } : {}),
                 ...(isEditAccess
                     ? {}
                     : {
@@ -123,15 +144,25 @@ export class GetService {
                           defaultAccesses: undefined,
                           isDb: undefined,
                       }),
-                ...(this.isTopLevelPath(album.path)
-                    ? {
-                          filesAmount: accessibleFilesWithoutUrls.filter(
-                              (file) =>
-                                  this.isThisOrChildPath(file.path, album.path)
-                          ).length,
-                      }
-                    : {}),
+            };
+        });
+
+        // ADD SIGNED URLS AND STRIP EDIT-RELATED FIELDS, SORT ALBUMS AND RETURN
+
+        return {
+            files: filteredFiles.map((file) => ({
+                ...file,
+                url: signedUrlsMap.get(file.filename) || '',
+                ...(isEditAccess
+                    ? {}
+                    : {
+                          accesses: undefined,
+                          resolvedAccesses: undefined,
+                          isDb: undefined,
+                      }),
             })),
+
+            albums: sortAlbums(albums, sortedFiles),
         };
     }
 
@@ -139,35 +170,52 @@ export class GetService {
         storageFilePaths: string[],
         filesWithoutUrls: FileModel[]
     ): (FileModel & { path: string; isDb?: true })[] {
+        const DATE_PREFIX_REGEX = /(?:^|\/)\d{4}\.\d{2}\.\d{2} - /;
+        const CLEAN_CHARS_REGEX = /[().,]/g;
+        const WHITESPACE_REGEX = /[\s']+/g;
+        const DASHES_REGEX = /-+/g;
+
         const filesWithoutUrlsMap = new Map<string, FileModel>();
-
-        filesWithoutUrls.forEach((file) => {
+        for (const file of filesWithoutUrls) {
             filesWithoutUrlsMap.set(file.filename, file);
-        });
+        }
 
-        return storageFilePaths.map((storageFilePath) => {
-            const filename = storageFilePath.split('/').pop() ?? '';
+        const result: (FileModel & { path: string; isDb?: true })[] = [];
+
+        for (const storageFilePath of storageFilePaths) {
+            const lastSlash = storageFilePath.lastIndexOf('/');
+            const filename =
+                lastSlash >= 0
+                    ? storageFilePath.slice(lastSlash + 1)
+                    : storageFilePath;
+
             const file = filesWithoutUrlsMap.get(filename);
 
-            const path =
-                file?.path ??
-                storageFilePath
-                    .split('/')
-                    .slice(0, -1)
-                    .join('/')
-                    .replace(/(?:^|\/)\d{4}\.\d{2}\.\d{2} - /, '')
-                    .trim()
-                    .replace(/[(),]/g, '')
-                    .replace(/[\s']+/g, '-')
-                    .replace(/-+/g, '-')
-                    .toLowerCase();
+            let path: string;
 
-            return {
+            if (file?.path) {
+                path = file.path;
+            } else {
+                const dir =
+                    lastSlash >= 0 ? storageFilePath.slice(0, lastSlash) : '';
+
+                path = dir
+                    .replace(DATE_PREFIX_REGEX, '')
+                    .trim()
+                    .replace(CLEAN_CHARS_REGEX, '')
+                    .replace(WHITESPACE_REGEX, '-')
+                    .replace(DASHES_REGEX, '-')
+                    .toLowerCase();
+            }
+
+            result.push({
                 ...(file ? { ...file, isDb: true } : {}),
                 filename,
                 path,
-            };
-        });
+            });
+        }
+
+        return result;
     }
 
     private populateAlbums(
@@ -217,7 +265,7 @@ export class GetService {
         return populatedAlbums;
     }
 
-    private isTopLevelPath(path: string): boolean {
+    private isRootPath(path: string): boolean {
         return !path.includes('/');
     }
 
@@ -289,5 +337,20 @@ export class GetService {
         const [, year, month, date, hour, minute, second] = dateTimeParsed;
 
         return `${year}${month}${date}_${hour}${minute}${second}`;
+    }
+
+    private getFilesAmountMap(files: { path: string }[]): Map<string, number> {
+        const filesAmountsMap = new Map<string, number>();
+
+        files.forEach((file) => {
+            const rootPath = file.path.split('/')[0];
+
+            filesAmountsMap.set(
+                rootPath,
+                (filesAmountsMap.get(rootPath) ?? 0) + 1
+            );
+        });
+
+        return filesAmountsMap;
     }
 }
