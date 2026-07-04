@@ -4,19 +4,22 @@ export interface Configuration {
     maxAge: number;
     clientId: string;
     jwtSecret: string;
+    mongoUri: string;
 }
 
-const configuration: Configuration = {
-    isDevelopment: Boolean(process.env['DEVELOPMENT']),
-    origin: process.env['DEVELOPMENT']
-        ? 'http://localhost:5173'
-        : 'https://zinovik.github.io',
-    maxAge: parseInt(process.env['MAX_AGE'], 10) || 30 * 24 * 60 * 60 * 1000, // 30 days
-    clientId:
-        '306312319198-u9h4e07khciuet8hnj00b8fvmq25rlj0.apps.googleusercontent.com',
-    jwtSecret: process.env['DEVELOPMENT']
-        ? 'local-development-secret'
-        : process.env['JWT_SECRET'],
-};
-
-export default () => configuration;
+export default () =>
+    ({
+        isDevelopment: Boolean(process.env['DEVELOPMENT']),
+        origin: process.env['DEVELOPMENT']
+            ? 'http://localhost:5173'
+            : 'https://zinovik.github.io',
+        maxAge:
+            parseInt(process.env['MAX_AGE'], 10) || 30 * 24 * 60 * 60 * 1000, // 30 days
+        clientId:
+            '306312319198-u9h4e07khciuet8hnj00b8fvmq25rlj0.apps.googleusercontent.com',
+        jwtSecret: process.env['DEVELOPMENT']
+            ? 'local-development-secret'
+            : process.env['JWT_SECRET'],
+        mongoUri:
+            process.env['MONGO_URI'] ?? 'mongodb://localhost:27017/gallery-db',
+    }) satisfies Configuration;

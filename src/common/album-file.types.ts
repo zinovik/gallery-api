@@ -84,3 +84,12 @@ export interface UpdatedFile {
     text?: string | string[];
     accesses?: string[];
 }
+
+export interface SignedUrlModel {
+    storagePath: string;
+    url: string;
+}
+
+export interface SignedUrlModelRead extends SignedUrlModel {
+    expiresAt: number;
+}

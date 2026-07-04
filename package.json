@@ -13,15 +13,15 @@
         "start": "node dist/main.js",
         "start:dev": "npm run build && DEVELOPMENT=true GOOGLE_APPLICATION_CREDENTIALS=key-file.json nest start --watch",
         "build:cloud": "gcloud builds submit --tag europe-central2-docker.pkg.dev/zinovik-gallery/zinovik-repository/gallery-api --region=europe-west1 --project zinovik-gallery",
-        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-gallery/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-gallery --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest --service-account=gallery-api@zinovik-gallery.iam.gserviceaccount.com"
+        "deploy": "gcloud run deploy gallery-api --image europe-central2-docker.pkg.dev/zinovik-gallery/zinovik-repository/gallery-api:latest --platform managed --region europe-central2 --allow-unauthenticated --project zinovik-gallery --set-secrets=JWT_SECRET=gallery-api-jwt-secret:latest,MONGO_URI=gallery-api-mongo-uri:latest --service-account=gallery-api@zinovik-gallery.iam.gserviceaccount.com"
     },
     "dependencies": {
-        "@google-cloud/firestore": "8.6.0",
         "@google-cloud/storage": "7.21.0",
         "@nestjs/common": "11.1.27",
         "@nestjs/config": "4.0.4",
         "@nestjs/core": "11.1.27",
         "@nestjs/jwt": "11.0.2",
+        "@nestjs/mongoose": "11.0.4",
         "@nestjs/platform-express": "11.1.27",
         "@nestjs/swagger": "11.4.4",
         "axios": "1.18.0",

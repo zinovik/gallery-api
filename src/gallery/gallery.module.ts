@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { GalleryController } from './gallery.controller';
 import { StorageService } from '../storage/storage.service';
 import { CacheService } from '../cache/cache.service';
-import { FirestoreService } from '../firestore/firestore.service';
+import { MongoDbService } from '../mongodb/mongodb.service';
 import { AuthModule } from '../auth/auth.module';
 import { GetService } from './get.service';
 import { EditService } from './edit.service';
@@ -16,7 +16,7 @@ import { EditService } from './edit.service';
         EditService,
         StorageService,
         CacheService,
-        FirestoreService,
+        MongoDbService,
     ],
 })
 export class GalleryModule {}

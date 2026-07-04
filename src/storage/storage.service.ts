@@ -5,33 +5,21 @@ import {
     AddedFile,
     AlbumModel,
     FileModel,
+    SignedUrlModel,
+    SignedUrlModelRead,
     UpdatedAlbum,
     UpdatedFile,
 } from '../common/album-file.types';
 import { CacheService } from '../cache/cache.service';
-import { FirestoreService } from '../firestore/firestore.service';
-import { Timestamp } from '@google-cloud/firestore';
+import { MongoDbService } from '../mongodb/mongodb.service';
 
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
-const FIRESTORE_FILES_COLLECTION = 'files' as const;
-const FIRESTORE_FILES_KEY_NAME = 'filename' as const;
-const FIRESTORE_ALBUMS_COLLECTION = 'albums' as const;
-const FIRESTORE_ALBUMS_KEY_NAME = 'path' as const;
-
-const FIRESTORE_SIGNED_URLS_COLLECTION = 'signed-urls' as const;
-const FIRESTORE_SIGNED_URLS_KEY_NAME = 'storagePath' as const;
+const FILES_CACHE_KEY = 'files' as const;
+const ALBUMS_CACHE_KEY = 'albums' as const;
+const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths';
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
-
-interface SignedUrlModel {
-    [FIRESTORE_SIGNED_URLS_KEY_NAME]: string;
-    url: string;
-}
-
-interface SignedUrlModelRead extends SignedUrlModel {
-    expiresAt: Timestamp;
-}
 
 interface InMemorySignedUrlModel {
     url: string;
@@ -43,27 +31,20 @@ export class StorageService {
     private readonly storage: Storage = new Storage();
 
     constructor(
-        private readonly firestoreService: FirestoreService,
+        private readonly mongoDbService: MongoDbService,
         private readonly cacheService: CacheService
     ) {}
 
     async getAlbums(): Promise<AlbumModel[]> {
         let data = await this.cacheService.get<AlbumModel[]>(
-            FIRESTORE_ALBUMS_COLLECTION,
+            ALBUMS_CACHE_KEY,
             true
         );
 
         if (!data) {
-            data = (await this.firestoreService.getAllFirestoreDocuments(
-                FIRESTORE_ALBUMS_COLLECTION,
-                FIRESTORE_ALBUMS_KEY_NAME
-            )) as AlbumModel[]; // because we trust our "db";
+            data = await this.mongoDbService.getAlbums();
 
-            await this.cacheService.set(
-                FIRESTORE_ALBUMS_COLLECTION,
-                data,
-                true
-            );
+            await this.cacheService.set(ALBUMS_CACHE_KEY, data, true);
         }
 
         return data;
@@ -71,17 +52,14 @@ export class StorageService {
 
     async getFiles(): Promise<FileModel[]> {
         let data = await this.cacheService.get<FileModel[]>(
-            FIRESTORE_FILES_COLLECTION,
+            FILES_CACHE_KEY,
             true
         );
 
         if (!data) {
-            data = (await this.firestoreService.getAllFirestoreDocuments(
-                FIRESTORE_FILES_COLLECTION,
-                FIRESTORE_FILES_KEY_NAME
-            )) as FileModel[]; // because we trust our "db";
+            data = await this.mongoDbService.getFiles();
 
-            await this.cacheService.set(FIRESTORE_FILES_COLLECTION, data, true);
+            await this.cacheService.set(FILES_CACHE_KEY, data, true);
         }
 
         return data;
@@ -116,32 +94,26 @@ export class StorageService {
             return signedUrlsMap;
         }
 
-        const dbSignedUrls =
-            await this.firestoreService.getFirestoreDocuments<SignedUrlModelRead>(
-                FIRESTORE_SIGNED_URLS_COLLECTION,
-                filenamesWithoutInMemoryCacheUrls.map(
-                    (filename) => pathMap[filename]
-                ),
-                FIRESTORE_SIGNED_URLS_KEY_NAME
-            );
+        const dbSignedUrls = await this.mongoDbService.getSignedUrls(
+            filenamesWithoutInMemoryCacheUrls.map(
+                (filename) => pathMap[filename]
+            )
+        );
 
         const dbSignedUrlsMap = new Map<string, SignedUrlModelRead>();
         dbSignedUrls.forEach((dbSignedUrl) => {
-            dbSignedUrlsMap.set(
-                dbSignedUrl[FIRESTORE_SIGNED_URLS_KEY_NAME],
-                dbSignedUrl
-            );
+            dbSignedUrlsMap.set(dbSignedUrl.storagePath, dbSignedUrl);
         });
 
         const filenamesWithoutSignedUrls: string[] = [];
 
         filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
             const dbSignedUrl = dbSignedUrlsMap.get(pathMap[filename]);
-            if (dbSignedUrl && dbSignedUrl.expiresAt.toMillis() > now) {
+            if (dbSignedUrl && dbSignedUrl.expiresAt > now) {
                 signedUrlsMap.set(filename, dbSignedUrl.url);
                 inMemoryCacheSignedUrlsMap.set(pathMap[filename], {
                     url: dbSignedUrl.url,
-                    expiresAt: dbSignedUrl.expiresAt.toMillis(),
+                    expiresAt: dbSignedUrl.expiresAt,
                 });
             } else filenamesWithoutSignedUrls.push(filename);
         });
@@ -180,7 +152,7 @@ export class StorageService {
                             expiresAt: now + URL_TTL,
                         });
                         newSignedUrls.push({
-                            [FIRESTORE_SIGNED_URLS_KEY_NAME]: pathMap[filename],
+                            storagePath: pathMap[filename],
                             url,
                         });
                     }
@@ -197,12 +169,7 @@ export class StorageService {
             true
         );
 
-        await this.firestoreService.writeFirestoreDocuments<SignedUrlModel>(
-            FIRESTORE_SIGNED_URLS_COLLECTION,
-            newSignedUrls,
-            FIRESTORE_SIGNED_URLS_KEY_NAME,
-            URL_TTL
-        );
+        await this.mongoDbService.setSignedUrls(newSignedUrls, URL_TTL);
 
         return signedUrlsMap;
     }
@@ -210,23 +177,27 @@ export class StorageService {
     async getStorageFilePaths(): Promise<string[]> {
         console.time('getStorageFilePaths');
 
-        const CACHE_KEY = 'storage-file-paths';
-        let data = await this.cacheService.get<string[]>(CACHE_KEY);
+        let storageFilePaths = await this.cacheService.get<string[]>(
+            STORAGE_FILE_PATHS_CACHE_KEY
+        );
 
-        if (!data) {
+        if (!storageFilePaths) {
             console.time('GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles');
             const bucket = this.storage.bucket(BUCKET_NAME_FILES);
             const [files] = await bucket.getFiles();
-            data = files.map((file) => file.name);
+            storageFilePaths = files.map((file) => file.name);
             console.timeEnd(
                 'GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles'
             );
 
-            await this.cacheService.set<string[]>(CACHE_KEY, data);
+            await this.cacheService.set<string[]>(
+                STORAGE_FILE_PATHS_CACHE_KEY,
+                storageFilePaths
+            );
         }
         console.timeEnd('getStorageFilePaths');
 
-        return data;
+        return storageFilePaths;
     }
 
     private async getSignedUrl(filePath: string): Promise<string> {
@@ -249,19 +220,13 @@ export class StorageService {
     async removeFiles(filenames?: string[]) {
         if (!filenames || filenames.length === 0) return;
 
-        await this.firestoreService.removeFirestoreDocuments(
-            FIRESTORE_FILES_COLLECTION,
-            [...new Set(filenames)]
-        );
+        await this.mongoDbService.removeFiles(filenames);
     }
 
     async removeAlbums(paths?: string[]) {
         if (!paths || paths.length === 0) return;
 
-        await this.firestoreService.removeFirestoreDocuments(
-            FIRESTORE_ALBUMS_COLLECTION,
-            [...new Set(paths)]
-        );
+        await this.mongoDbService.removeAlbums(paths);
     }
 
     async updateFiles(updatedFiles?: UpdatedFile[]) {
@@ -269,12 +234,7 @@ export class StorageService {
 
         const filenames = updatedFiles.map((f) => f.filename);
 
-        const dbFiles =
-            await this.firestoreService.getFirestoreDocuments<FileModel>(
-                FIRESTORE_FILES_COLLECTION,
-                filenames,
-                FIRESTORE_FILES_KEY_NAME
-            );
+        const dbFiles = await this.mongoDbService.getFiles(filenames);
 
         const updatedFilesMap: Record<
             string,
@@ -320,11 +280,7 @@ export class StorageService {
             return appliedUpdatesFile;
         });
 
-        await this.firestoreService.writeFirestoreDocuments(
-            FIRESTORE_FILES_COLLECTION,
-            appliedUpdatesFiles,
-            FIRESTORE_FILES_KEY_NAME
-        );
+        await this.mongoDbService.setFiles(appliedUpdatesFiles);
     }
 
     async updateAlbums(updatedAlbums?: UpdatedAlbum[]) {
@@ -332,12 +288,7 @@ export class StorageService {
 
         const paths = updatedAlbums.map((a) => a.path);
 
-        const dbAlbums =
-            await this.firestoreService.getFirestoreDocuments<AlbumModel>(
-                FIRESTORE_ALBUMS_COLLECTION,
-                paths,
-                FIRESTORE_ALBUMS_KEY_NAME
-            );
+        const dbAlbums = await this.mongoDbService.getAlbums(paths);
 
         const updatedAlbumsMap = new Map<string, Omit<UpdatedAlbum, 'path'>>();
         updatedAlbums.forEach((updatedAlbum) => {
@@ -399,30 +350,18 @@ export class StorageService {
             return appliedUpdatesAlbum;
         });
 
-        await this.firestoreService.writeFirestoreDocuments<AlbumModel>(
-            FIRESTORE_ALBUMS_COLLECTION,
-            appliedUpdatesAlbums,
-            FIRESTORE_ALBUMS_KEY_NAME
-        );
+        await this.mongoDbService.setAlbums(appliedUpdatesAlbums);
     }
 
     async addFiles(files?: AddedFile[]) {
         if (!files || files.length === 0) return;
 
-        await this.firestoreService.writeFirestoreDocuments<FileModel>(
-            FIRESTORE_FILES_COLLECTION,
-            files,
-            FIRESTORE_FILES_KEY_NAME
-        );
+        await this.mongoDbService.setFiles(files);
     }
 
     async addAlbums(albums?: AddedAlbum[]) {
         if (!albums || albums.length === 0) return;
 
-        await this.firestoreService.writeFirestoreDocuments<AlbumModel>(
-            FIRESTORE_ALBUMS_COLLECTION,
-            albums,
-            FIRESTORE_ALBUMS_KEY_NAME
-        );
+        await this.mongoDbService.setAlbums(albums);
     }
 }

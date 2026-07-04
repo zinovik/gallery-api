@@ -1,35 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '../common/user.type';
-import { FirestoreService } from '../firestore/firestore.service';
+import { MongoDbService } from '../mongodb/mongodb.service';
 import { CacheService } from '../cache/cache.service';
 
-const FIRESTORE_USERS_COLLECTION = 'users';
-const FIRESTORE_USERS_KEY_NAME = 'email';
+const USERS_CACHE_KEY = 'users';
 
 @Injectable()
 export class UsersService {
     constructor(
-        private readonly firestoreService: FirestoreService,
+        private readonly mongoDbService: MongoDbService,
         private readonly cacheService: CacheService
     ) {}
 
     async findOne(email: string): Promise<User> {
-        let users = await this.cacheService.get<User[]>(
-            FIRESTORE_USERS_COLLECTION,
-            true
-        );
+        let users = await this.cacheService.get<User[]>(USERS_CACHE_KEY, true);
 
         if (!users) {
-            users = (await this.firestoreService.getAllFirestoreDocuments(
-                FIRESTORE_USERS_COLLECTION,
-                FIRESTORE_USERS_KEY_NAME
-            )) as User[]; // because we trust our "db";
+            users = await this.mongoDbService.getUsers();
 
-            await this.cacheService.set(
-                FIRESTORE_USERS_COLLECTION,
-                users,
-                true
-            );
+            await this.cacheService.set(USERS_CACHE_KEY, users, true);
         }
 
         return (

@@ -1,13 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FirestoreService } from '../firestore/firestore.service';
-
-const FIRESTORE_CACHE_COLLECTION = 'cache';
-const FAKE_CACHE_ID = 'fake-cache-id';
-
-interface DbCache<T> {
-    [FAKE_CACHE_ID]: string;
-    data: T;
-}
+import { MongoDbService } from '../mongodb/mongodb.service';
 
 @Injectable()
 export class CacheService {
@@ -16,31 +8,43 @@ export class CacheService {
         { data: unknown; expiresAt?: Date }
     >();
 
-    constructor(private readonly firestoreService: FirestoreService) {}
+    constructor(private readonly mongoDbService: MongoDbService) {}
 
-    async get<T>(key: string, isInMemoryOnly?: true): Promise<T | null> {
-        let data = this.getInMemory<T>(key);
+    async get<T>(cacheKey: string, isInMemoryOnly?: true): Promise<T | null> {
+        const inMemoryData = this.getInMemory<T>(cacheKey);
 
-        if (data || isInMemoryOnly) return data;
+        if (inMemoryData || isInMemoryOnly) return inMemoryData;
 
-        data = await this.getInDb(key);
+        const dbData = await this.mongoDbService.getCache<
+            T & { expiresAt?: Date }
+        >(cacheKey);
 
-        if (data) this.setInMemory(key, data); // TODO: expiresAt
+        if (dbData) {
+            if (dbData.expiresAt) {
+                const ttlMs = new Date(dbData.expiresAt).getTime() - Date.now();
 
-        return data ?? null;
+                if (ttlMs > 0) {
+                    this.setInMemory(cacheKey, dbData, ttlMs);
+                }
+            } else {
+                this.setInMemory(cacheKey, dbData);
+            }
+        }
+
+        return dbData ?? null;
     }
 
     async set<T>(
-        key: string,
+        cacheKey: string,
         data: T,
         isInMemoryOnly?: true,
         ttlMs?: number
     ): Promise<void> {
-        this.setInMemory(key, data, ttlMs);
+        this.setInMemory<T>(cacheKey, data, ttlMs);
 
         if (isInMemoryOnly) return;
 
-        await this.setInDb(key, data, ttlMs);
+        await this.mongoDbService.setCache<T>(cacheKey, data, ttlMs);
     }
 
     async invalidateAll(isInMemoryOnly?: true): Promise<void> {
@@ -51,61 +55,29 @@ export class CacheService {
         }
 
         if (!isInMemoryOnly) {
-            await this.firestoreService.removeAllFirestoreDocuments(
-                FIRESTORE_CACHE_COLLECTION
-            );
+            await this.mongoDbService.removeCache();
         }
 
         console.timeEnd('cache invalidation');
     }
 
-    private getInMemory<T>(key: string): T | null {
-        const cache = this.cache.get(key);
+    private getInMemory<T>(cacheKey: string): T | null {
+        const cache = this.cache.get(cacheKey);
 
         if (!cache) return null;
 
         if (cache.expiresAt && cache.expiresAt.getTime() <= Date.now()) {
-            this.cache.delete(key);
+            this.cache.delete(cacheKey);
             return null;
         }
 
         return cache.data as T;
     }
 
-    private setInMemory<T>(key: string, data: T, ttlMs?: number): void {
-        this.cache.set(key, {
+    private setInMemory<T>(cacheKey: string, data: T, ttlMs?: number): void {
+        this.cache.set(cacheKey, {
             data,
             ...(ttlMs ? { expiresAt: new Date(Date.now() + ttlMs) } : {}),
         });
-    }
-
-    private async getInDb<T>(key: string): Promise<T | null> {
-        const data = (
-            await this.firestoreService.getFirestoreDocuments<DbCache<T>>(
-                FIRESTORE_CACHE_COLLECTION,
-                [key],
-                FAKE_CACHE_ID
-            )
-        )[0]?.data;
-
-        return data ?? null;
-    }
-
-    private async setInDb<T>(
-        key: string,
-        data: T,
-        ttlMs?: number
-    ): Promise<void> {
-        await this.firestoreService.writeFirestoreDocuments<DbCache<T>>(
-            FIRESTORE_CACHE_COLLECTION,
-            [
-                {
-                    [FAKE_CACHE_ID]: key,
-                    data,
-                },
-            ],
-            FAKE_CACHE_ID,
-            ttlMs
-        );
     }
 }
