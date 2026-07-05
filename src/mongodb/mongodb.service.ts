@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model } from 'mongoose';
 import {
     AlbumModel,
     FileModel,
@@ -32,8 +32,16 @@ interface CacheEntry<T> {
 export class MongoDbService {
     constructor(
         @InjectConnection()
-        private readonly connection: Connection
+        private readonly connection: Connection,
+        @InjectModel('File') private fileModel: Model<any>,
+        @InjectModel('Album') private albumModel: Model<any>,
+        @InjectModel('User') private userModel: Model<any>
     ) {}
+
+    private emptyProjection = {
+        _id: 0,
+        __v: 0,
+    } as const;
 
     private get db() {
         if (!this.connection.db) {
@@ -46,11 +54,14 @@ export class MongoDbService {
     }
 
     async getFiles(filenames?: string[]): Promise<FileModel[]> {
-        return await this.getDocuments<FileModel>(
-            FILES_COLLECTION,
-            FILES_KEY_NAME,
-            filenames
-        );
+        const query = filenames?.length
+            ? { [FILES_KEY_NAME]: { $in: filenames } }
+            : {};
+
+        return this.fileModel
+            .find(query, this.emptyProjection)
+            .lean()
+            .exec();
     }
 
     async setFiles(files: FileModel[]): Promise<void> {

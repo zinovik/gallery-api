@@ -17,7 +17,7 @@ const BUCKET_NAME_FILES = 'gallery-files' as const;
 
 const FILES_CACHE_KEY = 'files' as const;
 const ALBUMS_CACHE_KEY = 'albums' as const;
-const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths';
+const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
 
