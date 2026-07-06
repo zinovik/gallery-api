@@ -3,81 +3,130 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 
 @Injectable()
 export class CacheService {
-    private readonly cache = new Map<
+    private readonly cacheMap = new Map<
         string,
-        { data: unknown; expiresAt?: Date }
+        { data: unknown; expiresAt: Date }
     >();
 
     constructor(private readonly mongoDbService: MongoDbService) {}
 
-    async get<T>(cacheKey: string, isInMemoryOnly?: true): Promise<T | null> {
-        const inMemoryData = this.getInMemory<T>(cacheKey);
+    async getCache<T>(
+        cacheKey: string,
+        isInMemoryOnly?: true
+    ): Promise<T | undefined> {
+        const cacheMap = await this.getCacheMap<T>([cacheKey], isInMemoryOnly);
 
-        if (inMemoryData || isInMemoryOnly) return inMemoryData;
-
-        const dbData = await this.mongoDbService.getCache<
-            T & { expiresAt?: Date }
-        >(cacheKey);
-
-        if (dbData) {
-            if (dbData.expiresAt) {
-                const ttlMs = new Date(dbData.expiresAt).getTime() - Date.now();
-
-                if (ttlMs > 0) {
-                    this.setInMemory(cacheKey, dbData, ttlMs);
-                }
-            } else {
-                this.setInMemory(cacheKey, dbData);
-            }
-        }
-
-        return dbData ?? null;
+        return cacheMap.get(cacheKey);
     }
 
-    async set<T>(
+    async setCache<T>(
         cacheKey: string,
         data: T,
-        isInMemoryOnly?: true,
-        ttlMs?: number
+        expiresAt: Date,
+        isInMemoryOnly?: true
     ): Promise<void> {
-        this.setInMemory<T>(cacheKey, data, ttlMs);
+        await this.setCaches(
+            [
+                {
+                    cacheKey,
+                    data,
+                    expiresAt,
+                },
+            ],
+            isInMemoryOnly
+        );
+    }
+
+    async getCacheMap<T>(
+        cacheKeys: string[],
+        isInMemoryOnly?: true
+    ): Promise<Map<string, T>> {
+        const cacheMap = this.getInMemoryCacheMap<T>(cacheKeys);
+
+        const missingInMemoryCacheKeys = cacheKeys.filter(
+            (key) => !cacheMap.has(key)
+        );
+
+        if (missingInMemoryCacheKeys.length === 0 || isInMemoryOnly) {
+            return cacheMap;
+        }
+
+        const dbCaches = await this.mongoDbService.getCaches<T>(
+            missingInMemoryCacheKeys
+        );
+
+        const newInMemoryCaches: {
+            cacheKey: string;
+            data: T;
+            expiresAt: Date;
+        }[] = [];
+
+        for (const dbCache of dbCaches) {
+            newInMemoryCaches.push(dbCache);
+            cacheMap.set(dbCache.cacheKey, dbCache.data);
+        }
+
+        this.setInMemoryCaches<T>(newInMemoryCaches);
+
+        return cacheMap;
+    }
+
+    async setCaches<T>(
+        caches: { cacheKey: string; data: T; expiresAt: Date }[],
+        isInMemoryOnly?: true
+    ): Promise<void> {
+        this.setInMemoryCaches<T>(caches);
 
         if (isInMemoryOnly) return;
 
-        await this.mongoDbService.setCache<T>(cacheKey, data, ttlMs);
+        await this.mongoDbService.upsertCaches<T>(caches);
     }
 
-    async invalidateAll(isInMemoryOnly?: true): Promise<void> {
+    async invalidate(
+        cacheKeys: string[],
+        isInMemoryOnly?: true
+    ): Promise<void> {
         console.time('cache invalidation');
 
-        for (const key of this.cache.keys()) {
-            this.cache.delete(key);
+        for (const cacheKey of cacheKeys) {
+            this.cacheMap.delete(cacheKey);
         }
 
         if (!isInMemoryOnly) {
-            await this.mongoDbService.removeCache();
+            await this.mongoDbService.removeCaches(cacheKeys);
         }
 
         console.timeEnd('cache invalidation');
     }
 
-    private getInMemory<T>(cacheKey: string): T | null {
-        const cache = this.cache.get(cacheKey);
+    private getInMemoryCacheMap<T>(cacheKeys: string[]): Map<string, T> {
+        const inMemoryCacheMap = new Map<string, T>();
 
-        if (!cache) return null;
+        for (const cacheKey of cacheKeys) {
+            const cache = this.cacheMap.get(cacheKey);
 
-        if (cache.expiresAt && cache.expiresAt.getTime() <= Date.now()) {
-            this.cache.delete(cacheKey);
-            return null;
+            if (!cache) {
+                continue;
+            }
+
+            if (cache.expiresAt.getTime() <= Date.now()) {
+                this.cacheMap.delete(cacheKey);
+            } else {
+                inMemoryCacheMap.set(cacheKey, cache.data as T);
+            }
         }
 
-        return cache.data as T;
+        return inMemoryCacheMap;
     }
 
-    private setInMemory<T>(cacheKey: string, data: T, ttlMs?: number): void {
-        this.cache.set(cacheKey, {
-            data,
-            ...(ttlMs ? { expiresAt: new Date(Date.now() + ttlMs) } : {}),
-        });
+    private setInMemoryCaches<T>(
+        caches: { cacheKey: string; data: T; expiresAt: Date }[]
+    ): void {
+        for (const { cacheKey, data, expiresAt } of caches) {
+            this.cacheMap.set(cacheKey, {
+                data,
+                expiresAt,
+            });
+        }
     }
 }

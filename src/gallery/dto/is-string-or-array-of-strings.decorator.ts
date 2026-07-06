@@ -7,10 +7,8 @@ import {
 } from 'class-validator';
 
 @ValidatorConstraint({ name: 'stringOrArray', async: false })
-class IsStringOrArrayOfStringsConstraint
-    implements ValidatorConstraintInterface
-{
-    validate(text: string | string[], args: ValidationArguments) {
+class IsStringOrArrayOfStringsConstraint implements ValidatorConstraintInterface {
+    validate(text: string | string[], _args: ValidationArguments) {
         return (
             typeof text === 'string' ||
             (Array.isArray(text) && text.every((t) => typeof t === 'string'))
@@ -26,7 +24,7 @@ export function IsStringOrArrayOfStrings(
     property?: string,
     validationOptions?: ValidationOptions
 ) {
-    return function (object: Object, propertyName: string) {
+    return function (object: object, propertyName: string) {
         registerDecorator({
             name: 'isLongerThan',
             target: object.constructor,

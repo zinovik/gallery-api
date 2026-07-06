@@ -71,7 +71,12 @@ export class GalleryController {
     @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
     async invalidateCache(): Promise<{ success: boolean }> {
-        await this.cacheService.invalidateAll();
+        await this.cacheService.invalidate([
+            'albums',
+            'files',
+            'users',
+            'storage-file-paths',
+        ]);
 
         return { success: true };
     }

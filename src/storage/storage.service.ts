@@ -5,8 +5,8 @@ import {
     AddedFile,
     AlbumModel,
     FileModel,
-    SignedUrlModel,
-    SignedUrlModelRead,
+    RemovedAlbum,
+    RemovedFile,
     UpdatedAlbum,
     UpdatedFile,
 } from '../common/album-file.types';
@@ -15,16 +15,13 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
-const FILES_CACHE_KEY = 'files' as const;
-const ALBUMS_CACHE_KEY = 'albums' as const;
+const FILES_CACHE_KEY = 'all-files' as const;
+const ALBUMS_CACHE_KEY = 'all-albums' as const;
 const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
-
-interface InMemorySignedUrlModel {
-    url: string;
-    expiresAt: number;
-}
+const YEAR = 365 * 24 * 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
 
 @Injectable()
 export class StorageService {
@@ -36,38 +33,46 @@ export class StorageService {
     ) {}
 
     async getAlbums(): Promise<AlbumModel[]> {
-        let data = await this.cacheService.get<AlbumModel[]>(
+        let albums = await this.cacheService.getCache<AlbumModel[]>(
             ALBUMS_CACHE_KEY,
             true
         );
 
-        if (!data) {
-            data = await this.mongoDbService.getAlbums();
+        if (!albums) {
+            albums = await this.mongoDbService.getAlbums();
 
-            await this.cacheService.set(ALBUMS_CACHE_KEY, data, true);
+            await this.cacheService.setCache<AlbumModel[]>(
+                ALBUMS_CACHE_KEY,
+                albums,
+                new Date(Date.now() + YEAR),
+                true
+            );
         }
 
-        return data;
+        return albums;
     }
 
     async getFiles(): Promise<FileModel[]> {
-        let data = await this.cacheService.get<FileModel[]>(
+        let files = await this.cacheService.getCache<FileModel[]>(
             FILES_CACHE_KEY,
             true
         );
 
-        if (!data) {
-            data = await this.mongoDbService.getFiles();
+        if (!files) {
+            files = await this.mongoDbService.getFiles();
 
-            await this.cacheService.set(FILES_CACHE_KEY, data, true);
+            await this.cacheService.setCache<FileModel[]>(
+                FILES_CACHE_KEY,
+                files,
+                new Date(Date.now() + YEAR),
+                true
+            );
         }
 
-        return data;
+        return files;
     }
 
     async getSignedUrlsMap(filenames: string[]): Promise<Map<string, string>> {
-        const now = Date.now();
-
         const filePaths = await this.getStorageFilePaths();
 
         const pathMap = Object.fromEntries(
@@ -75,65 +80,33 @@ export class StorageService {
         );
 
         const signedUrlsMap = new Map<string, string>();
-        const filenamesWithoutInMemoryCacheUrls: string[] = [];
-        const CACHE_KEY = 'signed-urls-map';
-        const inMemoryCacheSignedUrlsMap =
-            (await this.cacheService.get<Map<string, InMemorySignedUrlModel>>(
-                CACHE_KEY,
-                true
-            )) ?? new Map<string, InMemorySignedUrlModel>();
-
-        filenames.forEach((filename) => {
-            const signedUrl = inMemoryCacheSignedUrlsMap.get(pathMap[filename]);
-            if (signedUrl && signedUrl.expiresAt > now)
-                signedUrlsMap.set(filename, signedUrl.url);
-            else filenamesWithoutInMemoryCacheUrls.push(filename);
-        });
-
-        if (filenamesWithoutInMemoryCacheUrls.length === 0) {
-            return signedUrlsMap;
-        }
-
-        const dbSignedUrls = await this.mongoDbService.getSignedUrls(
-            filenamesWithoutInMemoryCacheUrls.map(
-                (filename) => pathMap[filename]
-            )
+        const filenamesWithoutSignedUrls: string[] = [];
+        const cacheSignedUrlsMap = await this.cacheService.getCacheMap<string>(
+            filenames.map((filename) => pathMap[filename])
         );
 
-        const dbSignedUrlsMap = new Map<string, SignedUrlModelRead>();
-        dbSignedUrls.forEach((dbSignedUrl) => {
-            dbSignedUrlsMap.set(dbSignedUrl.storagePath, dbSignedUrl);
-        });
-
-        const filenamesWithoutSignedUrls: string[] = [];
-
-        filenamesWithoutInMemoryCacheUrls.forEach((filename) => {
-            const dbSignedUrl = dbSignedUrlsMap.get(pathMap[filename]);
-            if (dbSignedUrl && dbSignedUrl.expiresAt > now) {
-                signedUrlsMap.set(filename, dbSignedUrl.url);
-                inMemoryCacheSignedUrlsMap.set(pathMap[filename], {
-                    url: dbSignedUrl.url,
-                    expiresAt: dbSignedUrl.expiresAt,
-                });
+        filenames.forEach((filename) => {
+            const signedUrl = cacheSignedUrlsMap.get(pathMap[filename]);
+            if (signedUrl) {
+                signedUrlsMap.set(filename, signedUrl);
             } else filenamesWithoutSignedUrls.push(filename);
         });
 
         if (filenamesWithoutSignedUrls.length === 0) {
-            await this.cacheService.set(
-                CACHE_KEY,
-                inMemoryCacheSignedUrlsMap,
-                true
-            );
-
             return signedUrlsMap;
         }
 
-        const newSignedUrls: SignedUrlModel[] = [];
+        const newCaches: {
+            cacheKey: string;
+            data: string;
+            expiresAt: Date;
+        }[] = [];
 
         console.time(
-            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
+            `🔴 GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
         );
-        const batchSize = 5;
+        const now = Date.now();
+        const batchSize = 10;
         for (let i = 0; i < filenamesWithoutSignedUrls.length; i += batchSize) {
             const batch = filenamesWithoutSignedUrls.slice(i, i + batchSize);
 
@@ -147,55 +120,50 @@ export class StorageService {
 
                     signedUrlsMap.set(filename, url);
                     if (url) {
-                        inMemoryCacheSignedUrlsMap.set(pathMap[filename], {
-                            url,
-                            expiresAt: now + URL_TTL,
-                        });
-                        newSignedUrls.push({
-                            storagePath: pathMap[filename],
-                            url,
+                        newCaches.push({
+                            cacheKey: filePath,
+                            data: url,
+                            expiresAt: new Date(now + URL_TTL - MINUTE), // 1 minute less because mongo removes it once per minute
                         });
                     }
                 })
             );
         }
         console.timeEnd(
-            `GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
+            `🔴 GOOGLE CLOUD STORAGE: getSignedUrlsMap.getSignedUrl (${filenamesWithoutSignedUrls.length})`
         );
 
-        await this.cacheService.set<Map<string, InMemorySignedUrlModel>>(
-            CACHE_KEY,
-            inMemoryCacheSignedUrlsMap,
-            true
-        );
-
-        await this.mongoDbService.setSignedUrls(newSignedUrls, URL_TTL);
+        await this.cacheService.setCaches<string>(newCaches);
 
         return signedUrlsMap;
     }
 
     async getStorageFilePaths(): Promise<string[]> {
-        console.time('getStorageFilePaths');
-
-        let storageFilePaths = await this.cacheService.get<string[]>(
-            STORAGE_FILE_PATHS_CACHE_KEY
-        );
+        let storageFilePaths = (
+            await this.cacheService.getCacheMap<string[]>([
+                STORAGE_FILE_PATHS_CACHE_KEY,
+            ])
+        ).get(STORAGE_FILE_PATHS_CACHE_KEY);
 
         if (!storageFilePaths) {
-            console.time('GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles');
+            console.time(
+                '🔴 GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles'
+            );
             const bucket = this.storage.bucket(BUCKET_NAME_FILES);
             const [files] = await bucket.getFiles();
             storageFilePaths = files.map((file) => file.name);
             console.timeEnd(
-                'GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles'
+                '🔴 GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles'
             );
 
-            await this.cacheService.set<string[]>(
-                STORAGE_FILE_PATHS_CACHE_KEY,
-                storageFilePaths
-            );
+            await this.cacheService.setCaches<string[]>([
+                {
+                    cacheKey: STORAGE_FILE_PATHS_CACHE_KEY,
+                    data: storageFilePaths,
+                    expiresAt: new Date(Date.now() + YEAR),
+                },
+            ]);
         }
-        console.timeEnd('getStorageFilePaths');
 
         return storageFilePaths;
     }
@@ -217,16 +185,20 @@ export class StorageService {
         }
     }
 
-    async removeFiles(filenames?: string[]) {
-        if (!filenames || filenames.length === 0) return;
+    async removeFiles(removedFile?: RemovedFile[]) {
+        if (!removedFile || removedFile.length === 0) return;
 
-        await this.mongoDbService.removeFiles(filenames);
+        await this.mongoDbService.removeFiles(
+            removedFile.map((file) => file.filename)
+        );
     }
 
-    async removeAlbums(paths?: string[]) {
-        if (!paths || paths.length === 0) return;
+    async removeAlbums(removedAlbums?: RemovedAlbum[]) {
+        if (!removedAlbums || removedAlbums.length === 0) return;
 
-        await this.mongoDbService.removeAlbums(paths);
+        await this.mongoDbService.removeAlbums(
+            removedAlbums.map((album) => album.path)
+        );
     }
 
     async updateFiles(updatedFiles?: UpdatedFile[]) {
@@ -280,7 +252,7 @@ export class StorageService {
             return appliedUpdatesFile;
         });
 
-        await this.mongoDbService.setFiles(appliedUpdatesFiles);
+        await this.mongoDbService.upsertFiles(appliedUpdatesFiles);
     }
 
     async updateAlbums(updatedAlbums?: UpdatedAlbum[]) {
@@ -350,18 +322,18 @@ export class StorageService {
             return appliedUpdatesAlbum;
         });
 
-        await this.mongoDbService.setAlbums(appliedUpdatesAlbums);
+        await this.mongoDbService.upsertAlbums(appliedUpdatesAlbums);
     }
 
     async addFiles(files?: AddedFile[]) {
         if (!files || files.length === 0) return;
 
-        await this.mongoDbService.setFiles(files);
+        await this.mongoDbService.upsertFiles(files);
     }
 
     async addAlbums(albums?: AddedAlbum[]) {
         if (!albums || albums.length === 0) return;
 
-        await this.mongoDbService.setAlbums(albums);
+        await this.mongoDbService.upsertAlbums(albums);
     }
 }

@@ -78,7 +78,7 @@ export class AuthController {
     @Post('logout')
     async logout(
         @Req() request: Request & { user?: User; token?: string },
-        @Res({ passthrough: true }) response: Response
+        @Res({ passthrough: true }) _response: Response
     ) {
         if (request.token) {
             await this.authService.updateInvalidated();

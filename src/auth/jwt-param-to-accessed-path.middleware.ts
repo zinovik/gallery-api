@@ -36,7 +36,7 @@ export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
             });
 
             request['accessedPath'] = payload.path;
-        } catch (error: unknown) {
+        } catch {
             next();
             return;
         }

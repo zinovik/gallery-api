@@ -1,5 +1,9 @@
 import { LoginTicket, OAuth2Client } from 'google-auth-library';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+    Injectable,
+    InternalServerErrorException,
+    UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Configuration } from '../app/configuration';
@@ -39,11 +43,17 @@ export class AuthService {
                       idToken: token,
                       audience: clientId,
                   });
-        } catch (error) {
+        } catch {
             throw new UnauthorizedException();
         }
 
         const payload = ticket.getPayload();
+
+        if (!payload || !payload.email) {
+            throw new InternalServerErrorException(
+                'Failed to get payload from Google token'
+            );
+        }
 
         return payload.email;
     }

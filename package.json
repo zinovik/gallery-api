@@ -9,6 +9,7 @@
     },
     "scripts": {
         "test": "exit 0 && jest --config jestconfig.json --coverage",
+        "lint": "eslint --ext .ts src",
         "build": "rm -rf dist && tsc",
         "start": "node dist/main.js",
         "start:dev": "npm run build && DEVELOPMENT=true GOOGLE_APPLICATION_CREDENTIALS=key-file.json nest start --watch",
@@ -23,8 +24,7 @@
         "@nestjs/jwt": "11.0.2",
         "@nestjs/mongoose": "11.0.4",
         "@nestjs/platform-express": "11.1.27",
-        "@nestjs/swagger": "11.4.4",
-        "axios": "1.18.0",
+        "@nestjs/swagger": "11.4.5",
         "class-transformer": "0.5.1",
         "class-validator": "0.15.1",
         "compression": "1.8.1",
@@ -33,6 +33,7 @@
         "rxjs": "7.8.2"
     },
     "devDependencies": {
+        "@eslint/js": "10.0.1",
         "@nestjs/cli": "11.0.23",
         "@nestjs/testing": "11.1.27",
         "@types/body-parser": "1.19.6",
@@ -40,10 +41,13 @@
         "@types/express": "5.0.6",
         "@types/jest": "30.0.0",
         "@types/node": "25.3.3",
-        "eslint": "9.39.3",
-        "jest": "30.2.0",
+        "eslint": "10.6.0",
+        "globals": "17.7.0",
+        "jest": "30.4.2",
+        "jiti": "2.7.0",
         "ts-jest": "29.4.11",
-        "typescript": "5.9.3"
+        "typescript": "5.9.3",
+        "typescript-eslint": "8.62.1"
     },
     "author": "Max Zinovik",
     "license": "Apache-2.0",

@@ -29,6 +29,7 @@ import { MongooseModule } from '@nestjs/mongoose';
                 uri: configService.getOrThrow<string>('mongoUri', {
                     infer: true,
                 }),
+                autoIndex: true,
             }),
         }),
     ],

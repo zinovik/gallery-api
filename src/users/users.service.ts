@@ -3,7 +3,8 @@ import { User } from '../common/user.type';
 import { MongoDbService } from '../mongodb/mongodb.service';
 import { CacheService } from '../cache/cache.service';
 
-const USERS_CACHE_KEY = 'users';
+const USERS_CACHE_KEY = 'all-users';
+const YEAR = 365 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class UsersService {
@@ -13,12 +14,20 @@ export class UsersService {
     ) {}
 
     async findOne(email: string): Promise<User> {
-        let users = await this.cacheService.get<User[]>(USERS_CACHE_KEY, true);
+        let users = await this.cacheService.getCache<User[]>(
+            USERS_CACHE_KEY,
+            true
+        );
 
         if (!users) {
             users = await this.mongoDbService.getUsers();
 
-            await this.cacheService.set(USERS_CACHE_KEY, users, true);
+            await this.cacheService.setCache<User[]>(
+                USERS_CACHE_KEY,
+                users,
+                new Date(Date.now() + YEAR),
+                true
+            );
         }
 
         return (

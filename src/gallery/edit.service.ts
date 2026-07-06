@@ -31,22 +31,18 @@ export class EditService {
             files?: UpdatedFile[];
         };
     }): Promise<void> {
-        await this.storageService.removeFiles(
-            body.remove?.files?.map((f) => f.filename)
-        );
+        await this.storageService.removeFiles(body.remove?.files);
 
         await this.storageService.updateFiles(body.update?.files);
 
         await this.storageService.addFiles(body.add?.files);
 
-        await this.storageService.removeAlbums(
-            body.remove?.albums?.map((a) => a.path)
-        );
+        await this.storageService.removeAlbums(body.remove?.albums);
 
         await this.storageService.updateAlbums(body.update?.albums);
 
         await this.storageService.addAlbums(body.add?.albums);
 
-        await this.cacheService.invalidateAll(true);
+        await this.cacheService.invalidate(['albums', 'files'], true);
     }
 }

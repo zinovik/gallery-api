@@ -41,7 +41,7 @@ export class JwtToUserMiddleware implements NestMiddleware {
 
             request['user'] = payload;
             request['token'] = token;
-        } catch (error: unknown) {
+        } catch {
             next();
             return;
         }

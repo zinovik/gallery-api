@@ -1,16 +1,18 @@
 import { Module } from '@nestjs/common';
-import { MongoDbService } from '../mongodb/mongodb.service';
-import { FileSchema } from '../schemas/file.schema';
-import { AlbumSchema } from '../schemas/album.schema';
-import { UserSchema } from '../schemas/user.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MongoDbService } from '../mongodb/mongodb.service';
+import { FileName, FileSchema } from './schemas/file.schema';
+import { AlbumName, AlbumSchema } from './schemas/album.schema';
+import { User, UserSchema } from './schemas/user.schema';
+import { Cache, CacheSchema } from './schemas/cache.schema';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
-            { name: 'File', schema: FileSchema },
-            { name: 'Album', schema: AlbumSchema },
-            { name: 'User', schema: UserSchema },
+            { name: FileName, schema: FileSchema },
+            { name: AlbumName, schema: AlbumSchema },
+            { name: User.name, schema: UserSchema },
+            { name: Cache.name, schema: CacheSchema },
         ]),
     ],
     providers: [MongoDbService],
