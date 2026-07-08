@@ -2,14 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AlbumModel, FileModel } from '../common/album-file.types';
+import { File } from './schemas/file.schema';
+import { Album } from './schemas/album.schema';
 import { User } from './schemas/user.schema';
 import { Cache } from './schemas/cache.schema';
 
 @Injectable()
 export class MongoDbService {
     constructor(
-        @InjectModel('File') private fileModel: Model<FileModel>,
-        @InjectModel('Album') private albumModel: Model<AlbumModel>,
+        @InjectModel('File') private fileModel: Model<File>,
+        @InjectModel('Album') private albumModel: Model<Album>,
         @InjectModel('User') private userModel: Model<User>,
         @InjectModel('Cache') private cacheModel: Model<Cache<unknown>>
     ) {}
@@ -26,7 +28,7 @@ export class MongoDbService {
 
         const files = await this.fileModel
             .find(
-                filenames?.length ? { filenames: { $in: filenames } } : {},
+                filenames?.length ? { filename: { $in: filenames } } : {},
                 this.MONGO_FIELD_REMOVED
             )
             .lean()
@@ -65,7 +67,7 @@ export class MongoDbService {
 
         const albums = await this.albumModel
             .find(
-                paths?.length ? { paths: { $in: paths } } : {},
+                paths?.length ? { path: { $in: paths } } : {},
                 this.MONGO_FIELD_REMOVED
             )
             .lean()

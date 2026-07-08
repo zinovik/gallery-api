@@ -32,9 +32,14 @@ export class StorageService {
         private readonly cacheService: CacheService
     ) {}
 
-    async getAlbums(): Promise<AlbumModel[]> {
+    async getAlbums(
+        _path: string,
+        _isHomeInclude: boolean
+    ): Promise<AlbumModel[]> {
+        const cacheKey = ALBUMS_CACHE_KEY;
+
         let albums = await this.cacheService.getCache<AlbumModel[]>(
-            ALBUMS_CACHE_KEY,
+            cacheKey,
             true
         );
 
@@ -42,7 +47,7 @@ export class StorageService {
             albums = await this.mongoDbService.getAlbums();
 
             await this.cacheService.setCache<AlbumModel[]>(
-                ALBUMS_CACHE_KEY,
+                cacheKey,
                 albums,
                 new Date(Date.now() + YEAR),
                 true
@@ -52,9 +57,15 @@ export class StorageService {
         return albums;
     }
 
-    async getFiles(): Promise<FileModel[]> {
+    async getFiles(
+        _path: string,
+        _isHomeInclude: boolean,
+        _dateRanges?: string[][]
+    ): Promise<FileModel[]> {
+        const cacheKey = FILES_CACHE_KEY;
+
         let files = await this.cacheService.getCache<FileModel[]>(
-            FILES_CACHE_KEY,
+            cacheKey,
             true
         );
 
@@ -62,7 +73,7 @@ export class StorageService {
             files = await this.mongoDbService.getFiles();
 
             await this.cacheService.setCache<FileModel[]>(
-                FILES_CACHE_KEY,
+                cacheKey,
                 files,
                 new Date(Date.now() + YEAR),
                 true

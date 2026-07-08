@@ -29,8 +29,8 @@ export class GetService {
 
         const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
-            this.storageService.getFiles(),
-            this.storageService.getAlbums(),
+            this.storageService.getFiles(path, isHomeInclude, dateRanges),
+            this.storageService.getAlbums(path, isHomeInclude),
         ]);
 
         // POPULATE AND SORT
