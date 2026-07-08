@@ -18,19 +18,19 @@ export class GetService {
         userAccesses: string[] = [],
         isEditAccess: boolean | undefined,
         accessedPath: string | undefined,
-        isHomeOnly: boolean,
-        isHomeInclude: boolean,
         dateRanges?: string[][]
     ): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
     }> {
+        const isHomeOnly = path === '' && !dateRanges;
+
         // GET RAW
 
         const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
-            this.storageService.getFiles(path, isHomeInclude, dateRanges),
-            this.storageService.getAlbums(path, isHomeInclude),
+            this.storageService.getFiles(path, dateRanges),
+            this.storageService.getAlbums(path),
         ]);
 
         // POPULATE AND SORT
@@ -109,8 +109,7 @@ export class GetService {
             path || isHomeOnly
                 ? accessibleAlbums.filter(
                       (album) =>
-                          ((isHomeInclude || isHomeOnly) &&
-                              this.isRootPath(album.path)) ||
+                          (isHomeOnly && this.isRootPath(album.path)) ||
                           (path &&
                               this.isThisOrChildOrParentPath(album.path, path))
                   )

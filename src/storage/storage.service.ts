@@ -32,10 +32,7 @@ export class StorageService {
         private readonly cacheService: CacheService
     ) {}
 
-    async getAlbums(
-        _path: string,
-        _isHomeInclude: boolean
-    ): Promise<AlbumModel[]> {
+    async getAlbums(_path: string): Promise<AlbumModel[]> {
         const cacheKey = ALBUMS_CACHE_KEY;
 
         let albums = await this.cacheService.getCache<AlbumModel[]>(
@@ -59,7 +56,6 @@ export class StorageService {
 
     async getFiles(
         _path: string,
-        _isHomeInclude: boolean,
         _dateRanges?: string[][]
     ): Promise<FileModel[]> {
         const cacheKey = FILES_CACHE_KEY;

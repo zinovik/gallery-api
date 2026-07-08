@@ -35,7 +35,6 @@ export class GalleryController {
             token?: string;
             accessedPath?: string;
         },
-        @Query('home') home: string,
         @Query('date-ranges') dateRanges: string,
         @Param('path') path?: string | undefined
     ): Promise<{
@@ -48,8 +47,6 @@ export class GalleryController {
             request.user?.accesses,
             request.user?.isEditAccess,
             request.accessedPath,
-            home === 'only',
-            home === 'include',
             dateRanges?.split(',').map((dateRange) => dateRange.split('-'))
         );
 
