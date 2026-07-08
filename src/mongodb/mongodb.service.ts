@@ -21,16 +21,16 @@ export class MongoDbService {
         __v: 0,
     } as const;
 
-    async getFiles(filenames?: string[]): Promise<FileModel[]> {
-        const logMessage = this.buildLogMessage('getFiles', filenames);
+    async getFiles(
+        path: string,
+        _dateRanges?: string[][]
+    ): Promise<FileModel[]> {
+        const logMessage = this.buildLogMessage('getFiles', path);
 
         console.time(logMessage);
 
         const files = await this.fileModel
-            .find(
-                filenames?.length ? { filename: { $in: filenames } } : {},
-                this.MONGO_FIELD_REMOVED
-            )
+            .find({}, this.MONGO_FIELD_REMOVED)
             .lean()
             .exec();
 
@@ -39,7 +39,13 @@ export class MongoDbService {
         return files;
     }
 
-    async upsertFiles(files: FileModel[]): Promise<void> {
+    async upsertFiles(
+        files: {
+            filename: string;
+            set?: Partial<FileModel>;
+            unset?: Record<string, ''>;
+        }[]
+    ): Promise<void> {
         if (files.length === 0) {
             return;
         }
@@ -48,7 +54,14 @@ export class MongoDbService {
             files.map((file) => ({
                 updateOne: {
                     filter: { filename: file.filename },
-                    update: { $set: file },
+                    update: {
+                        ...(file.set && Object.keys(file.set).length > 0
+                            ? { $set: file.set }
+                            : {}),
+                        ...(file.unset && Object.keys(file.unset).length > 0
+                            ? { $unset: file.unset }
+                            : {}),
+                    },
                     upsert: true,
                 },
             })),
@@ -60,16 +73,13 @@ export class MongoDbService {
         await this.fileModel.deleteMany({ filenames: { $in: filenames } });
     }
 
-    async getAlbums(paths?: string[]): Promise<AlbumModel[]> {
-        const logMessage = this.buildLogMessage('getAlbums', paths);
+    async getAlbums(path: string): Promise<AlbumModel[]> {
+        const logMessage = this.buildLogMessage('getAlbums', path);
 
         console.time(logMessage);
 
         const albums = await this.albumModel
-            .find(
-                paths?.length ? { path: { $in: paths } } : {},
-                this.MONGO_FIELD_REMOVED
-            )
+            .find({}, this.MONGO_FIELD_REMOVED)
             .lean()
             .exec();
 
@@ -78,7 +88,13 @@ export class MongoDbService {
         return albums;
     }
 
-    async upsertAlbums(albums: AlbumModel[]): Promise<void> {
+    async upsertAlbums(
+        albums: {
+            path: string;
+            set?: Partial<AlbumModel>;
+            unset?: Record<string, ''>;
+        }[]
+    ): Promise<void> {
         if (albums.length === 0) {
             return;
         }
@@ -87,7 +103,14 @@ export class MongoDbService {
             albums.map((album) => ({
                 updateOne: {
                     filter: { path: album.path },
-                    update: { $set: album },
+                    update: {
+                        ...(album.set && Object.keys(album.set).length > 0
+                            ? { $set: album.set }
+                            : {}),
+                        ...(album.unset && Object.keys(album.unset).length > 0
+                            ? { $unset: album.unset }
+                            : {}),
+                    },
                     upsert: true,
                 },
             })),
@@ -142,11 +165,23 @@ export class MongoDbService {
     async removeCaches(cacheKeys: string[]): Promise<void> {
         await this.cacheModel.deleteMany({ cacheKey: { $in: cacheKeys } });
     }
+    private buildLogMessage(
+        operation: string,
+        parameter?: string | string[]
+    ): string {
+        const message = `🟡 MONGO DB: ${operation}`;
 
-    private buildLogMessage(operation: string, keys?: string[]): string {
-        return (
-            `🟡 MONGO DB: ${operation}` +
-            `${keys?.length ? ` (${keys?.length} doc(s)` + `${keys?.length <= 5 ? `: ${keys?.join(', ')}` : ''})` : ''}`
-        );
+        if (parameter === undefined) {
+            return message;
+        }
+
+        if (!Array.isArray(parameter)) {
+            return `${message} (${parameter})`;
+        }
+
+        const details =
+            parameter.length <= 5 ? `: ${parameter.join(', ')}` : '';
+
+        return `${message} (${parameter.length} doc(s)${details})`;
     }
 }

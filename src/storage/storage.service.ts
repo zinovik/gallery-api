@@ -15,8 +15,8 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
-const FILES_CACHE_KEY = 'all-files' as const;
-const ALBUMS_CACHE_KEY = 'all-albums' as const;
+const FILES_CACHE_KEY = 'files' as const;
+const ALBUMS_CACHE_KEY = 'albums' as const;
 const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
@@ -32,7 +32,7 @@ export class StorageService {
         private readonly cacheService: CacheService
     ) {}
 
-    async getAlbums(_path: string): Promise<AlbumModel[]> {
+    async getAlbums(path: string): Promise<AlbumModel[]> {
         const cacheKey = ALBUMS_CACHE_KEY;
 
         let albums = await this.cacheService.getCache<AlbumModel[]>(
@@ -41,7 +41,7 @@ export class StorageService {
         );
 
         if (!albums) {
-            albums = await this.mongoDbService.getAlbums();
+            albums = await this.mongoDbService.getAlbums(path);
 
             await this.cacheService.setCache<AlbumModel[]>(
                 cacheKey,
@@ -55,8 +55,8 @@ export class StorageService {
     }
 
     async getFiles(
-        _path: string,
-        _dateRanges?: string[][]
+        path: string,
+        dateRanges?: string[][]
     ): Promise<FileModel[]> {
         const cacheKey = FILES_CACHE_KEY;
 
@@ -66,7 +66,7 @@ export class StorageService {
         );
 
         if (!files) {
-            files = await this.mongoDbService.getFiles();
+            files = await this.mongoDbService.getFiles(path, dateRanges);
 
             await this.cacheService.setCache<FileModel[]>(
                 cacheKey,
@@ -211,136 +211,140 @@ export class StorageService {
     async updateFiles(updatedFiles?: UpdatedFile[]) {
         if (!updatedFiles || updatedFiles.length === 0) return;
 
-        const filenames = updatedFiles.map((f) => f.filename);
+        const updates = updatedFiles.map((file) => {
+            const set: Partial<FileModel> = {};
+            const unset: Record<string, ''> = {};
 
-        const dbFiles = await this.mongoDbService.getFiles(filenames);
+            if (file.path !== undefined) {
+                if (file.path === '') {
+                    unset.path = '';
+                } else {
+                    set.path = file.path;
+                }
+            }
 
-        const updatedFilesMap: Record<
-            string,
-            Omit<UpdatedFile, 'filename'>
-        > = {};
-        updatedFiles.forEach((updatedFile) => {
-            const { filename, ...rest } = updatedFile;
+            if (file.description !== undefined) {
+                if (file.description === '') {
+                    unset.description = '';
+                } else {
+                    set.description = file.description;
+                }
+            }
 
-            updatedFilesMap[filename] = {
-                ...(updatedFilesMap[filename] ?? {}),
-                ...rest,
+            if (file.text !== undefined) {
+                if (file.text === '') {
+                    unset.text = '';
+                } else {
+                    set.text = file.text;
+                }
+            }
+
+            if (file.accesses !== undefined) {
+                if (file.accesses.length === 0) {
+                    unset.accesses = '';
+                } else {
+                    set.accesses = file.accesses;
+                }
+            }
+
+            return {
+                filename: file.filename,
+                set,
+                unset,
             };
         });
 
-        const appliedUpdatesFiles: FileModel[] = dbFiles.map((dbFile) => {
-            const updatedFile = updatedFilesMap[dbFile.filename];
-
-            const appliedUpdatesFile = {
-                ...dbFile,
-                ...(updatedFile.path !== undefined
-                    ? { path: updatedFile.path }
-                    : {}),
-                ...(updatedFile.description !== undefined
-                    ? { description: updatedFile.description }
-                    : {}),
-                ...(updatedFile.text !== undefined
-                    ? { text: updatedFile.text }
-                    : {}),
-                ...(updatedFile.accesses !== undefined
-                    ? {
-                          accesses: updatedFile.accesses,
-                      }
-                    : {}),
-            };
-
-            if (appliedUpdatesFile.path === '') delete appliedUpdatesFile.path;
-            if (appliedUpdatesFile.description === '')
-                delete appliedUpdatesFile.description;
-            if (appliedUpdatesFile.text === '') delete appliedUpdatesFile.text;
-            if (appliedUpdatesFile.accesses?.length === 0)
-                delete appliedUpdatesFile.accesses;
-
-            return appliedUpdatesFile;
-        });
-
-        await this.mongoDbService.upsertFiles(appliedUpdatesFiles);
+        await this.mongoDbService.upsertFiles(updates);
     }
 
     async updateAlbums(updatedAlbums?: UpdatedAlbum[]) {
         if (!updatedAlbums || updatedAlbums.length === 0) return;
 
-        const paths = updatedAlbums.map((a) => a.path);
+        const updates = updatedAlbums.map((album) => {
+            const set: Partial<AlbumModel> = {};
+            const unset: Record<string, ''> = {};
 
-        const dbAlbums = await this.mongoDbService.getAlbums(paths);
+            if (album.newPath !== undefined) {
+                set.path = album.newPath;
+            }
 
-        const updatedAlbumsMap = new Map<string, Omit<UpdatedAlbum, 'path'>>();
-        updatedAlbums.forEach((updatedAlbum) => {
-            const { path, ...rest } = updatedAlbum;
+            if (album.title !== undefined) {
+                if (album.title === '') {
+                    unset.title = '';
+                } else {
+                    set.title = album.title;
+                }
+            }
 
-            updatedAlbumsMap.set(path, {
-                ...(updatedAlbumsMap.get(path) ?? {}),
-                ...rest,
-            });
-        });
+            if (album.text !== undefined) {
+                if (album.text === '') {
+                    unset.text = '';
+                } else {
+                    set.text = album.text;
+                }
+            }
 
-        const appliedUpdatesAlbums: AlbumModel[] = dbAlbums.map((dbAlbum) => {
-            const updatedAlbum = updatedAlbumsMap.get(dbAlbum.path);
+            if (album.defaultByDate !== undefined) {
+                if (album.defaultByDate === false) {
+                    unset.defaultByDate = '';
+                } else {
+                    set.defaultByDate = true;
+                }
+            }
 
-            if (!updatedAlbum) return dbAlbum;
+            if (album.order !== undefined) {
+                if (album.order === 0) {
+                    unset.order = '';
+                } else {
+                    set.order = album.order;
+                }
+            }
 
-            const appliedUpdatesAlbum = {
-                ...dbAlbum,
-                ...(updatedAlbum.newPath !== undefined
-                    ? { path: updatedAlbum.newPath }
-                    : {}),
-                ...(updatedAlbum.title !== undefined
-                    ? { title: updatedAlbum.title }
-                    : {}),
-                ...(updatedAlbum.text !== undefined
-                    ? { text: updatedAlbum.text }
-                    : {}),
-                ...(updatedAlbum.defaultByDate !== undefined
-                    ? { defaultByDate: true }
-                    : {}),
-                ...(updatedAlbum.order !== undefined
-                    ? { order: updatedAlbum.order }
-                    : {}),
-                ...(updatedAlbum.accesses !== undefined
-                    ? {
-                          accesses: updatedAlbum.accesses,
-                      }
-                    : {}),
-                ...(updatedAlbum.defaultAccesses !== undefined
-                    ? {
-                          defaultAccesses: updatedAlbum.defaultAccesses,
-                      }
-                    : {}),
+            if (album.accesses !== undefined) {
+                if (album.accesses.length === 0) {
+                    unset.accesses = '';
+                } else {
+                    set.accesses = album.accesses;
+                }
+            }
+
+            if (album.defaultAccesses !== undefined) {
+                if (album.defaultAccesses.length === 0) {
+                    unset.defaultAccesses = '';
+                } else {
+                    set.defaultAccesses = album.defaultAccesses;
+                }
+            }
+
+            return {
+                path: album.path,
+                set,
+                unset,
             };
-
-            if (appliedUpdatesAlbum.title === '')
-                delete appliedUpdatesAlbum.title;
-            if (appliedUpdatesAlbum.text === '')
-                delete appliedUpdatesAlbum.text;
-            if (appliedUpdatesAlbum.defaultByDate === false)
-                delete appliedUpdatesAlbum.defaultByDate;
-            if (appliedUpdatesAlbum.order === 0)
-                delete appliedUpdatesAlbum.order;
-            if (appliedUpdatesAlbum.accesses?.length === 0)
-                delete appliedUpdatesAlbum.accesses;
-            if (appliedUpdatesAlbum.defaultAccesses?.length === 0)
-                delete appliedUpdatesAlbum.defaultAccesses;
-
-            return appliedUpdatesAlbum;
         });
 
-        await this.mongoDbService.upsertAlbums(appliedUpdatesAlbums);
+        await this.mongoDbService.upsertAlbums(updates);
     }
 
     async addFiles(files?: AddedFile[]) {
         if (!files || files.length === 0) return;
 
-        await this.mongoDbService.upsertFiles(files);
+        await this.mongoDbService.upsertFiles(
+            files.map((file) => ({
+                filename: file.filename,
+                set: file,
+            }))
+        );
     }
 
     async addAlbums(albums?: AddedAlbum[]) {
         if (!albums || albums.length === 0) return;
 
-        await this.mongoDbService.upsertAlbums(albums);
+        await this.mongoDbService.upsertAlbums(
+            albums.map((album) => ({
+                path: album.path,
+                set: album,
+            }))
+        );
     }
 }
