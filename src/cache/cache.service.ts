@@ -88,6 +88,7 @@ export class CacheService {
     ): Promise<void> {
         console.time('cache invalidation');
 
+        // TODO: Invalidate by key beginning, for example 'albums:*'
         for (const cacheKey of cacheKeys) {
             this.cacheMap.delete(cacheKey);
         }

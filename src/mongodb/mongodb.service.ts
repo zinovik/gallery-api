@@ -36,6 +36,8 @@ export class MongoDbService {
 
         console.timeEnd(logMessage);
 
+        console.log('getFiles', files.length);
+
         return files;
     }
 
@@ -78,12 +80,34 @@ export class MongoDbService {
 
         console.time(logMessage);
 
+        let query;
+
+        if (!path) {
+            query = {
+                path: { $not: /\// },
+            };
+        } else {
+            const pathParts = path.split('/');
+
+            const parentPaths = pathParts.map((_, index) =>
+                pathParts.slice(0, index + 1).join('/')
+            );
+
+            query = {
+                path: {
+                    $regex: `^(${parentPaths.slice(0, -1).join('$|^')}$|${path})(/|$)`,
+                },
+            };
+        }
+
         const albums = await this.albumModel
-            .find({}, this.MONGO_FIELD_REMOVED)
+            .find(query, this.MONGO_FIELD_REMOVED)
             .lean()
             .exec();
 
         console.timeEnd(logMessage);
+
+        console.log('getAlbums', albums.length);
 
         return albums;
     }

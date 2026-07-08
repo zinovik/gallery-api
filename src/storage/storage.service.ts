@@ -16,7 +16,7 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
 const FILES_CACHE_KEY = 'files' as const;
-const ALBUMS_CACHE_KEY = 'albums' as const;
+const ALBUMS_CACHE_KEY_PREFIX = 'albums' as const;
 const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
@@ -33,7 +33,9 @@ export class StorageService {
     ) {}
 
     async getAlbums(path: string): Promise<AlbumModel[]> {
-        const cacheKey = ALBUMS_CACHE_KEY;
+        const cacheKey = `${ALBUMS_CACHE_KEY_PREFIX}:${path || 'root'}`;
+
+        // TODO: If part1/part2 is cached and we need part1/part2/part3 - we don't need to make a request
 
         let albums = await this.cacheService.getCache<AlbumModel[]>(
             cacheKey,
