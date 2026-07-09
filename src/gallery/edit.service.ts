@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StorageService } from '../storage/storage.service';
+import { StorageService } from './storage.service';
 import {
     AddedAlbum,
     AddedFile,
@@ -43,6 +43,9 @@ export class EditService {
 
         await this.storageService.addAlbums(body.add?.albums);
 
-        await this.cacheService.invalidate(['albums', 'files'], true);
+        await this.cacheService.invalidate(
+            ['albums', 'files', 'albums-loaded-paths-key'],
+            true
+        );
     }
 }

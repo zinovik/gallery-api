@@ -13,6 +13,7 @@ export interface FileModel {
     path?: string;
     description?: string;
     text?: string | string[];
+    tags?: string[];
     accesses?: string[];
 }
 
@@ -35,6 +36,7 @@ export interface FileDTO {
     url: string;
     description?: string;
     text?: string | string[];
+    tags?: string[];
     accesses?: string[];
     resolvedAccesses?: string[];
     isDb?: true;

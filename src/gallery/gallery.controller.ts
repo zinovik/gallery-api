@@ -71,8 +71,9 @@ export class GalleryController {
         await this.cacheService.invalidate([
             'albums',
             'files',
-            'users',
+            'all-users',
             'storage-file-paths',
+            'albums-loaded-paths-key',
         ]);
 
         return { success: true };

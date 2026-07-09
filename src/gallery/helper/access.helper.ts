@@ -1,4 +1,5 @@
 import { AlbumModel } from '../../common/album-file.types';
+import { isThisOrChildOrParentPath } from './common.helper';
 
 const ACCESS_ADMIN = 'admin';
 const ACCESS_PUBLIC = 'public';
@@ -31,12 +32,7 @@ export const hasAccess = (
     path: string,
     accessedPath: string | undefined
 ) => {
-    if (
-        accessedPath &&
-        (path === accessedPath ||
-            path.startsWith(`${accessedPath}/`) ||
-            accessedPath.startsWith(`${path}/`))
-    ) {
+    if (accessedPath && isThisOrChildOrParentPath(path, accessedPath)) {
         return true;
     }
 

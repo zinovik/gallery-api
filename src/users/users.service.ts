@@ -4,7 +4,7 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 import { CacheService } from '../cache/cache.service';
 
 const USERS_CACHE_KEY = 'all-users';
-const YEAR = 365 * 24 * 60 * 60 * 1000;
+const YEAR = 1000 * 60 * 60 * 24 * 365;
 
 @Injectable()
 export class UsersService {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StorageService } from '../storage/storage.service';
+import { StorageService } from './storage.service';
 import { hasAccess, resolveAccesses } from './helper/access.helper';
 import {
     AlbumDTO,
@@ -8,6 +8,10 @@ import {
     FileModel,
 } from '../common/album-file.types';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
+import {
+    isThisOrChildOrParentPath,
+    isThisOrChildPath,
+} from './helper/common.helper';
 
 @Injectable()
 export class GetService {
@@ -30,7 +34,7 @@ export class GetService {
         const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.storageService.getStorageFilePaths(),
             this.storageService.getFiles(path, dateRanges),
-            this.storageService.getAlbums(path),
+            this.storageService.getAlbums(path, Boolean(dateRanges)),
         ]);
 
         // POPULATE AND SORT
@@ -110,8 +114,7 @@ export class GetService {
                 ? accessibleAlbums.filter(
                       (album) =>
                           (isHomeOnly && this.isRootPath(album.path)) ||
-                          (path &&
-                              this.isThisOrChildOrParentPath(album.path, path))
+                          (path && isThisOrChildOrParentPath(album.path, path))
                   )
                 : accessibleAlbums;
 
@@ -253,7 +256,7 @@ export class GetService {
                     ...album,
                     title:
                         album.title ??
-                        album.path
+                        (album.path.split('/').pop() ?? '')
                             .replace(/-/g, ' ')
                             .replace(/\b\w/g, (c) => c.toUpperCase()),
                     isDb: true,
@@ -268,24 +271,6 @@ export class GetService {
         return !path.includes('/');
     }
 
-    private isThisOrChildPath(currentItemPath: string, requiredPath: string) {
-        return (
-            currentItemPath === requiredPath ||
-            currentItemPath.startsWith(`${requiredPath}/`)
-        );
-    }
-
-    private isThisOrChildOrParentPath(
-        currentItemPath: string,
-        requiredPath: string
-    ) {
-        return (
-            currentItemPath === requiredPath ||
-            currentItemPath.startsWith(`${requiredPath}/`) ||
-            requiredPath.startsWith(`${currentItemPath}/`)
-        );
-    }
-
     private filterFilesByPathAndDateRanges({
         files,
         path,
@@ -298,7 +283,7 @@ export class GetService {
         if (!path && !dateRanges) return files;
 
         return files.filter((file) => {
-            if (path && !this.isThisOrChildPath(file.path, path)) return false;
+            if (path && !isThisOrChildPath(file.path, path)) return false;
 
             if (!dateRanges) return true;
 

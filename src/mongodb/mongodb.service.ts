@@ -75,18 +75,14 @@ export class MongoDbService {
         await this.fileModel.deleteMany({ filenames: { $in: filenames } });
     }
 
-    async getAlbums(path: string): Promise<AlbumModel[]> {
+    async getAlbums(path: string, isByDate: boolean): Promise<AlbumModel[]> {
         const logMessage = this.buildLogMessage('getAlbums', path);
 
         console.time(logMessage);
 
         let query;
 
-        if (!path) {
-            query = {
-                path: { $not: /\// },
-            };
-        } else {
+        if (path) {
             const pathParts = path.split('/');
 
             const parentPaths = pathParts.map((_, index) =>
@@ -98,6 +94,12 @@ export class MongoDbService {
                     $regex: `^(${parentPaths.slice(0, -1).join('$|^')}$|${path})(/|$)`,
                 },
             };
+        } else {
+            query = isByDate
+                ? {}
+                : {
+                      path: { $not: /\// },
+                  };
         }
 
         const albums = await this.albumModel

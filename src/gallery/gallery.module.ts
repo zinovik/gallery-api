@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GalleryController } from './gallery.controller';
-import { StorageService } from '../storage/storage.service';
+import { StorageService } from './storage.service';
 import { CacheService } from '../cache/cache.service';
 import { MongoDbService } from '../mongodb/mongodb.service';
 import { AuthModule } from '../auth/auth.module';

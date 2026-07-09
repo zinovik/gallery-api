@@ -12,16 +12,18 @@ import {
 } from '../common/album-file.types';
 import { CacheService } from '../cache/cache.service';
 import { MongoDbService } from '../mongodb/mongodb.service';
+import { isThisOrChildPath } from './helper/common.helper';
 
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
 const FILES_CACHE_KEY = 'files' as const;
-const ALBUMS_CACHE_KEY_PREFIX = 'albums' as const;
+const ALBUMS_CACHE_KEY = 'albums' as const;
+const ALBUMS_LOADED_PATHS_KEY = 'albums-loaded-paths-key' as const;
 const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
 
 const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
-const YEAR = 365 * 24 * 60 * 60 * 1000;
-const MINUTE = 60 * 1000;
+const YEAR = 1000 * 60 * 60 * 24 * 365;
+const MINUTE = 1000 * 60;
 
 @Injectable()
 export class StorageService {
@@ -32,26 +34,50 @@ export class StorageService {
         private readonly cacheService: CacheService
     ) {}
 
-    async getAlbums(path: string): Promise<AlbumModel[]> {
-        const cacheKey = `${ALBUMS_CACHE_KEY_PREFIX}:${path || 'root'}`;
+    async getAlbums(path: string, isByDate: boolean): Promise<AlbumModel[]> {
+        const loadedPaths =
+            (await this.cacheService.getCache<Set<string>>(
+                ALBUMS_LOADED_PATHS_KEY,
+                true
+            )) ?? new Set<string>();
 
-        // TODO: If part1/part2 is cached and we need part1/part2/part3 - we don't need to make a request
+        let albums =
+            (await this.cacheService.getCache<AlbumModel[]>(
+                ALBUMS_CACHE_KEY,
+                true
+            )) ?? [];
 
-        let albums = await this.cacheService.getCache<AlbumModel[]>(
-            cacheKey,
+        const ALL_LOADED_PATH = 'ALL';
+
+        const isAlreadyLoaded = this.getIsAlreadyLoaded(
+            [...loadedPaths],
+            path === '' && isByDate ? ALL_LOADED_PATH : path,
+            ALL_LOADED_PATH
+        );
+
+        if (isAlreadyLoaded) {
+            return albums;
+        }
+
+        albums = this.uniqueAlbums(
+            albums,
+            await this.mongoDbService.getAlbums(path, isByDate)
+        );
+        loadedPaths.add(path === '' && isByDate ? ALL_LOADED_PATH : path);
+
+        await this.cacheService.setCache<AlbumModel[]>(
+            ALBUMS_CACHE_KEY,
+            albums,
+            new Date(Date.now() + YEAR),
             true
         );
 
-        if (!albums) {
-            albums = await this.mongoDbService.getAlbums(path);
-
-            await this.cacheService.setCache<AlbumModel[]>(
-                cacheKey,
-                albums,
-                new Date(Date.now() + YEAR),
-                true
-            );
-        }
+        await this.cacheService.setCache<Set<string>>(
+            ALBUMS_LOADED_PATHS_KEY,
+            loadedPaths,
+            new Date(Date.now() + YEAR),
+            true
+        );
 
         return albums;
     }
@@ -347,6 +373,42 @@ export class StorageService {
                 path: album.path,
                 set: album,
             }))
+        );
+    }
+
+    private uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
+        const seen = new Set<string>();
+
+        return items.filter((item) => {
+            const value = key(item);
+
+            if (seen.has(value)) {
+                return false;
+            }
+
+            seen.add(value);
+            return true;
+        });
+    }
+
+    private uniqueFiles(...fileGroups: FileModel[][]): FileModel[] {
+        return this.uniqueBy(fileGroups.flat(), (file) => file.filename);
+    }
+
+    private uniqueAlbums(...albumGroups: AlbumModel[][]): AlbumModel[] {
+        return this.uniqueBy(albumGroups.flat(), (album) => album.path);
+    }
+
+    private getIsAlreadyLoaded(
+        loadedPaths: string[],
+        currentPath: string,
+        allLoadedPath: string
+    ): boolean {
+        return (
+            loadedPaths.includes(allLoadedPath) ||
+            loadedPaths.some((loadedPath) =>
+                isThisOrChildPath(currentPath, loadedPath)
+            )
         );
     }
 }
