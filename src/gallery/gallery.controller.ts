@@ -33,7 +33,7 @@ export class GalleryController {
         request: Request & {
             user?: User;
             token?: string;
-            accessedPath?: string;
+            tokenPath?: string;
         },
         @Query('date-ranges') dateRanges: string,
         @Query('tags') tags: string,
@@ -47,7 +47,7 @@ export class GalleryController {
             (path || '').replace(/,/g, '/'),
             request.user?.accesses,
             request.user?.isEditAccess,
-            request.accessedPath, // TODO: dateRanges and tags
+            request.tokenPath, // TODO: dateRanges and tags
             dateRanges?.split(',').map((dateRange) => dateRange.split('-')),
             tags?.split(',')
         );

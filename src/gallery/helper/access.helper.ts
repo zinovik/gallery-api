@@ -30,9 +30,9 @@ export const hasAccess = (
     userAccesses: string[],
     targetAccesses: string[],
     path: string,
-    accessedPath: string | undefined
+    tokenPath: string | undefined
 ) => {
-    if (accessedPath && isThisOrChildOrParentPath(path, accessedPath)) {
+    if (tokenPath && isThisOrChildOrParentPath(path, tokenPath)) {
         return true;
     }
 

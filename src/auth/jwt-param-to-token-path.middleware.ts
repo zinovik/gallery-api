@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { Configuration } from '../app/configuration';
 
 @Injectable()
-export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
+export class JwtParamToTokenPathMiddleware implements NestMiddleware {
     constructor(
         private jwtService: JwtService,
         private configService: ConfigService<Configuration, true>
@@ -16,7 +16,7 @@ export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
         request: Request & {
             user?: User;
             token?: string;
-            accessedPath?: string;
+            tokenPath?: string;
         },
         _response: Response,
         next: NextFunction
@@ -36,7 +36,7 @@ export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
             });
 
             // TODO: dateRanges and tags
-            request['accessedPath'] = payload.path;
+            request['tokenPath'] = payload.path;
         } catch {
             next();
             return;

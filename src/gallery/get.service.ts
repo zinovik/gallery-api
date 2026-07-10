@@ -16,7 +16,7 @@ export class GetService {
         path: string,
         userAccesses: string[] = [],
         isEditAccess: boolean | undefined,
-        accessedPath: string | undefined,
+        tokenPath: string | undefined,
         dateRanges?: string[][],
         tags?: string[]
     ): Promise<{
@@ -39,7 +39,7 @@ export class GetService {
                 userAccesses,
                 album.resolved?.accesses ?? album.accesses ?? [],
                 album.path,
-                accessedPath
+                tokenPath
             )
         );
 
@@ -48,7 +48,7 @@ export class GetService {
                 userAccesses,
                 file.resolved?.accesses ?? file.accesses ?? [],
                 file.resolved?.path ?? file.path ?? 'NOT RESOLVED',
-                accessedPath
+                tokenPath
             )
         );
 
