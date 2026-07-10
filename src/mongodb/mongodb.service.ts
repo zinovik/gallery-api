@@ -21,16 +21,44 @@ export class MongoDbService {
         __v: 0,
     } as const;
 
+    async getAllFiles(): Promise<FileModel[]> {
+        return await this.fileModel
+            .find({}, this.MONGO_FIELD_REMOVED)
+            .lean()
+            .exec();
+    }
+
     async getFiles(
         path: string,
-        _dateRanges?: string[][]
+        _dateRanges?: string[][],
+        _tags?: string[]
     ): Promise<FileModel[]> {
         const logMessage = this.buildLogMessage('getFiles', path);
 
         console.time(logMessage);
 
+        let query;
+
+        if (path) {
+            const pathParts = path.split('/');
+
+            const parentPaths = pathParts.map((_, index) =>
+                pathParts.slice(0, index + 1).join('/')
+            );
+
+            query = {
+                'resolved.path': {
+                    $regex: `^(${parentPaths.slice(0, -1).join('$|^')}$|${path})(/|$)`,
+                },
+            };
+        } else {
+            // we need it to calculate the files amount TODO: avoid it
+            // we need it to sort the albums TODO: avoid it
+            query = {};
+        }
+
         const files = await this.fileModel
-            .find({}, this.MONGO_FIELD_REMOVED)
+            .find(query, this.MONGO_FIELD_REMOVED)
             .lean()
             .exec();
 
@@ -75,6 +103,13 @@ export class MongoDbService {
         await this.fileModel.deleteMany({ filenames: { $in: filenames } });
     }
 
+    async getAllAlbums(): Promise<AlbumModel[]> {
+        return await this.albumModel
+            .find({}, this.MONGO_FIELD_REMOVED)
+            .lean()
+            .exec();
+    }
+
     async getAlbums(path: string, isByDate: boolean): Promise<AlbumModel[]> {
         const logMessage = this.buildLogMessage('getAlbums', path);
 
@@ -96,7 +131,8 @@ export class MongoDbService {
             };
         } else {
             query = isByDate
-                ? {}
+                ? // we need it because we don't know the latest albums or albums that includes files with some tags TODO: avoid it
+                  {}
                 : {
                       path: { $not: /\// },
                   };
@@ -188,9 +224,12 @@ export class MongoDbService {
         );
     }
 
-    async removeCaches(cacheKeys: string[]): Promise<void> {
-        await this.cacheModel.deleteMany({ cacheKey: { $in: cacheKeys } });
+    async removeCaches(cacheKeys?: string[]): Promise<void> {
+        await this.cacheModel.deleteMany(
+            cacheKeys ? { cacheKey: { $in: cacheKeys } } : {}
+        );
     }
+
     private buildLogMessage(
         operation: string,
         parameter?: string | string[]

@@ -35,6 +35,7 @@ export class JwtParamToAccessedPathMiddleware implements NestMiddleware {
                 }),
             });
 
+            // TODO: dateRanges and tags
             request['accessedPath'] = payload.path;
         } catch {
             next();

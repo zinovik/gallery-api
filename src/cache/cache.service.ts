@@ -83,14 +83,17 @@ export class CacheService {
     }
 
     async invalidate(
-        cacheKeys: string[],
+        cacheKeys?: string[],
         isInMemoryOnly?: true
     ): Promise<void> {
         console.time('cache invalidation');
 
-        // TODO: Invalidate by key beginning, for example 'albums:*'
-        for (const cacheKey of cacheKeys) {
-            this.cacheMap.delete(cacheKey);
+        if (cacheKeys) {
+            for (const cacheKey of cacheKeys) {
+                this.cacheMap.delete(cacheKey);
+            }
+        } else {
+            this.cacheMap.clear();
         }
 
         if (!isInMemoryOnly) {

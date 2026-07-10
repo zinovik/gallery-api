@@ -14,16 +14,16 @@ import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { EditGuard } from '../auth/edit.guard';
 import { GetService } from './get.service';
-import { EditService } from './edit.service';
 import { EditInDto } from './dto/edit.in.dto';
 import { CacheService } from '../cache/cache.service';
+import { StorageService } from './storage.service';
 
 @Controller()
 export class GalleryController {
     constructor(
-        private getService: GetService,
-        private editService: EditService,
-        private cacheService: CacheService
+        private readonly getService: GetService,
+        private readonly storageService: StorageService,
+        private readonly cacheService: CacheService
     ) {}
 
     @Get(['get', 'get/*path'])
@@ -36,6 +36,7 @@ export class GalleryController {
             accessedPath?: string;
         },
         @Query('date-ranges') dateRanges: string,
+        @Query('tags') tags: string,
         @Param('path') path?: string | undefined
     ): Promise<{
         albums: AlbumDTO[];
@@ -46,8 +47,9 @@ export class GalleryController {
             (path || '').replace(/,/g, '/'),
             request.user?.accesses,
             request.user?.isEditAccess,
-            request.accessedPath,
-            dateRanges?.split(',').map((dateRange) => dateRange.split('-'))
+            request.accessedPath, // TODO: dateRanges and tags
+            dateRanges?.split(',').map((dateRange) => dateRange.split('-')),
+            tags?.split(',')
         );
 
         return {
@@ -59,21 +61,48 @@ export class GalleryController {
     @Post('edit')
     @UseGuards(EditGuard)
     async edit(@Body() body: EditInDto): Promise<{ success: boolean }> {
-        await this.editService.edit(body);
+        await this.storageService.removeFiles(body.remove?.files);
+        await this.storageService.updateFiles(body.update?.files);
+        await this.storageService.removeAlbums(body.remove?.albums);
+        await this.storageService.updateAlbums(body.update?.albums);
+        await this.storageService.addAlbums(body.add?.albums);
+
+        await this.cacheService.invalidate(
+            ['albums', 'files', 'albums-loaded-paths', 'files-loaded-paths'],
+            true
+        );
 
         return { success: true };
     }
 
-    @Post('invalidate-cache')
+    @Post('resolve')
+    @UseGuards(EditGuard)
+    async resolve(): Promise<{ success: boolean }> {
+        await this.storageService.resolve(true);
+
+        await this.cacheService.invalidate(
+            ['albums', 'files', 'albums-loaded-paths', 'files-loaded-paths'],
+            true
+        );
+
+        return { success: true };
+    }
+
+    @Post('resolve-new-storage-files')
     @SkipAuthGuard()
     @UseGuards(GoogleAuthGuard)
-    async invalidateCache(): Promise<{ success: boolean }> {
+    async resolveNewStorageFiles(): Promise<{ success: boolean }> {
+        await this.storageService.resolve(true);
+
         await this.cacheService.invalidate([
             'albums',
             'files',
+            'albums-loaded-paths',
+            'files-loaded-paths',
             'all-users',
+            'files-loaded-paths',
+            'albums-loaded-paths',
             'storage-file-paths',
-            'albums-loaded-paths-key',
         ]);
 
         return { success: true };

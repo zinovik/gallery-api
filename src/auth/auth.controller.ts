@@ -65,11 +65,16 @@ export class AuthController {
     @UseGuards(EditGuard)
     async share(
         @Param('path') path: string,
+        @Query('date-ranges') dateRanges: string,
+        @Query('tags') tags: string,
         @Query() { expires_in_h: expiresInH }: ShareQueryInDto
     ) {
+        // TODO: add tags and date ranges
         const token = await this.authService.getSharedAlbumToken(
             path.replace(/,/g, '/'),
-            expiresInH * 60 * 60
+            expiresInH * 60 * 60,
+            dateRanges,
+            tags
         );
 
         return { token };

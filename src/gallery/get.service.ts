@@ -1,12 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from './storage.service';
-import { hasAccess, resolveAccesses } from './helper/access.helper';
-import {
-    AlbumDTO,
-    AlbumModel,
-    FileDTO,
-    FileModel,
-} from '../common/album-file.types';
+import { hasAccess } from './helper/access.helper';
+import { AlbumDTO, FileDTO, FileModel } from '../common/album-file.types';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
 import {
     isThisOrChildOrParentPath,
@@ -22,7 +17,8 @@ export class GetService {
         userAccesses: string[] = [],
         isEditAccess: boolean | undefined,
         accessedPath: string | undefined,
-        dateRanges?: string[][]
+        dateRanges?: string[][],
+        tags?: string[]
     ): Promise<{
         albums: AlbumDTO[];
         files: FileDTO[];
@@ -31,68 +27,29 @@ export class GetService {
 
         // GET RAW
 
-        const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
-            this.storageService.getStorageFilePaths(),
-            this.storageService.getFiles(path, dateRanges),
+        const [dbFiles, dbAlbums] = await Promise.all([
+            this.storageService.getFiles(path, dateRanges, tags),
             this.storageService.getAlbums(path, Boolean(dateRanges)),
         ]);
 
-        // POPULATE AND SORT
-
-        console.time('populateFiles');
-        const populatedFiles = this.populateFiles(storageFilePaths, dbFiles);
-        console.timeEnd('populateFiles');
-
-        const filePaths: string[] = [
-            ...new Set(populatedFiles.map((file) => file.path)),
-        ];
-
-        console.time('populateAlbums');
-        const populatedAlbums = this.populateAlbums(filePaths, dbAlbums);
-        console.timeEnd('populateAlbums');
-
-        // RESOLVE ACCESS
-
-        const albumsMap = new Map(
-            populatedAlbums.map((album) => [album.path, album])
-        );
-        const albumsWithResolvedAccesses = populatedAlbums.map((album) => ({
-            ...album,
-            resolvedAccesses: resolveAccesses(
-                album.accesses,
-                album.path,
-                albumsMap
-            ),
-        }));
-
-        const filesWithResolvedAccesses = populatedFiles.map((file) => ({
-            ...file,
-            resolvedAccesses: resolveAccesses(
-                file.accesses,
-                file.path,
-                albumsMap
-            ),
-        }));
-
         // FILTER BY ACCESS
 
-        const accessibleAlbums = albumsWithResolvedAccesses.filter((album) =>
+        const accessibleAlbums = dbAlbums.filter((album) =>
             hasAccess(
                 userAccesses,
-                album.resolvedAccesses,
+                album.resolved?.accesses ?? album.accesses ?? [],
                 album.path,
                 accessedPath
             )
         );
 
-        const accessibleFilesWithoutUrls = filesWithResolvedAccesses.filter(
-            (file) =>
-                hasAccess(
-                    userAccesses,
-                    file.resolvedAccesses,
-                    file.path,
-                    accessedPath
-                )
+        const accessibleFilesWithoutUrls = dbFiles.filter((file) =>
+            hasAccess(
+                userAccesses,
+                file.resolved?.accesses ?? file.accesses ?? [],
+                file.resolved?.path ?? file.path ?? 'NOT RESOLVED',
+                accessedPath
+            )
         );
 
         // SORT FILES
@@ -103,10 +60,11 @@ export class GetService {
 
         const filteredFiles = isHomeOnly
             ? []
-            : this.filterFilesByPathAndDateRanges({
+            : this.filterFilesByPathDateRangesAndTags({
                   files: sortedFiles,
                   path,
                   dateRanges,
+                  tags,
               });
 
         const filteredAlbums =
@@ -122,7 +80,10 @@ export class GetService {
 
         console.time('getSignedUrlsMap');
         const signedUrlsMap = await this.storageService.getSignedUrlsMap(
-            filteredFiles.map((file) => file.filename)
+            filteredFiles.map((file) => [
+                file.filename,
+                file.resolved?.storagePath,
+            ])
         );
         console.timeEnd('getSignedUrlsMap');
 
@@ -141,10 +102,13 @@ export class GetService {
                 ...(isEditAccess
                     ? {}
                     : {
+                          title:
+                              album.resolved?.title ??
+                              album.title ??
+                              'NOT RESOLVED',
                           accesses: undefined,
-                          resolvedAccesses: undefined,
                           defaultAccesses: undefined,
-                          isDb: undefined,
+                          resolved: undefined,
                       }),
             };
         });
@@ -156,11 +120,19 @@ export class GetService {
                 ...file,
                 url: signedUrlsMap.get(file.filename) || '',
                 ...(isEditAccess
-                    ? {}
+                    ? {
+                          resolved: {
+                              ...file.resolved,
+                              storagePath: undefined,
+                          },
+                      }
                     : {
+                          path:
+                              file.resolved?.path ??
+                              file.path ??
+                              'NOT RESOLVED',
                           accesses: undefined,
-                          resolvedAccesses: undefined,
-                          isDb: undefined,
+                          resolved: undefined,
                       }),
             })),
 
@@ -168,132 +140,46 @@ export class GetService {
         };
     }
 
-    private populateFiles(
-        storageFilePaths: string[],
-        filesWithoutUrls: FileModel[]
-    ): (FileModel & { path: string; isDb?: true })[] {
-        const DATE_PREFIX_REGEX = /(?:^|\/)\d{4}\.\d{2}\.\d{2} - /;
-        const CLEAN_CHARS_REGEX = /[().,]/g;
-        const WHITESPACE_REGEX = /[\s']+/g;
-        const DASHES_REGEX = /-+/g;
-
-        const filesWithoutUrlsMap = new Map<string, FileModel>();
-        for (const file of filesWithoutUrls) {
-            filesWithoutUrlsMap.set(file.filename, file);
-        }
-
-        const result: (FileModel & { path: string; isDb?: true })[] = [];
-
-        for (const storageFilePath of storageFilePaths) {
-            const lastSlash = storageFilePath.lastIndexOf('/');
-            const filename =
-                lastSlash >= 0
-                    ? storageFilePath.slice(lastSlash + 1)
-                    : storageFilePath;
-
-            const file = filesWithoutUrlsMap.get(filename);
-
-            let path: string;
-
-            if (file?.path) {
-                path = file.path;
-            } else {
-                const dir =
-                    lastSlash >= 0 ? storageFilePath.slice(0, lastSlash) : '';
-
-                path = dir
-                    .replace(DATE_PREFIX_REGEX, '')
-                    .trim()
-                    .replace(CLEAN_CHARS_REGEX, '')
-                    .replace(WHITESPACE_REGEX, '-')
-                    .replace(DASHES_REGEX, '-')
-                    .toLowerCase();
-            }
-
-            result.push({
-                ...(file ? { ...file, isDb: true } : {}),
-                filename,
-                path,
-            });
-        }
-
-        return result;
-    }
-
-    private populateAlbums(
-        filePaths: string[],
-        albums: AlbumModel[]
-    ): (AlbumModel & { title: string; isDb?: true })[] {
-        const albumsMap = new Map<string, AlbumModel>();
-        albums.forEach((album) => albumsMap.set(album.path, album));
-
-        const populatedAlbums: (AlbumModel & { title: string; isDb?: true })[] =
-            [];
-        const usedAlbums: Set<string> = new Set();
-
-        filePaths.forEach((filePath) => {
-            const album = albumsMap.get(filePath);
-
-            if (album) usedAlbums.add(album.path);
-
-            populatedAlbums.push({
-                ...(album ? { ...album, isDb: true } : {}),
-                path: filePath,
-                title:
-                    (album?.title ??
-                        filePath
-                            .split('/')
-                            .slice(-1)[0]
-                            .replace(/-/g, ' ')
-                            .replace(/\b\w/g, (c) => c.toUpperCase())) ||
-                    'untitled',
-            });
-        });
-
-        albums.forEach((album) => {
-            if (!usedAlbums.has(album.path)) {
-                populatedAlbums.push({
-                    ...album,
-                    title:
-                        album.title ??
-                        (album.path.split('/').pop() ?? '')
-                            .replace(/-/g, ' ')
-                            .replace(/\b\w/g, (c) => c.toUpperCase()),
-                    isDb: true,
-                });
-            }
-        });
-
-        return populatedAlbums;
-    }
-
     private isRootPath(path: string): boolean {
         return !path.includes('/');
     }
 
-    private filterFilesByPathAndDateRanges({
+    private filterFilesByPathDateRangesAndTags({
         files,
         path,
         dateRanges,
+        tags,
     }: {
-        files: Omit<FileDTO, 'url'>[];
+        files: FileModel[];
         path: string;
         dateRanges?: string[][];
+        tags?: string[];
     }) {
-        if (!path && !dateRanges) return files;
+        if (!path && !dateRanges && !tags) return files;
 
         return files.filter((file) => {
-            if (path && !isThisOrChildPath(file.path, path)) return false;
+            const filePath = file.resolved?.path ?? file.path ?? 'NOT RESOLVED';
 
-            if (!dateRanges) return true;
+            if (path && !isThisOrChildPath(filePath, path)) return false;
 
             const datetime = this.getDatetimeFromFilename(file.filename);
 
-            return dateRanges.some(
-                ([from, to]) =>
-                    (!from || datetime.slice(0, from.length) >= from) &&
-                    (!to || datetime.slice(0, to.length) <= to)
-            );
+            if (
+                dateRanges &&
+                !dateRanges.some(
+                    ([from, to]) =>
+                        (!from || datetime.slice(0, from.length) >= from) &&
+                        (!to || datetime.slice(0, to.length) <= to)
+                )
+            ) {
+                return false;
+            }
+
+            if (tags && !tags.some((tag) => file.tags?.includes(tag))) {
+                return false;
+            }
+
+            return true;
         });
     }
 
@@ -323,11 +209,14 @@ export class GetService {
         return `${year}${month}${date}_${hour}${minute}${second}`;
     }
 
-    private getFilesAmountMap(files: { path: string }[]): Map<string, number> {
+    private getFilesAmountMap(
+        files: { path?: string; resolved?: { path?: string } }[]
+    ): Map<string, number> {
         const filesAmountsMap = new Map<string, number>();
 
         files.forEach((file) => {
-            const rootPath = file.path.split('/')[0];
+            const filePath = file.resolved?.path ?? file.path ?? 'NOT RESOLVED';
+            const rootPath = filePath.split('/')[0];
 
             filesAmountsMap.set(
                 rootPath,

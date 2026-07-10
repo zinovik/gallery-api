@@ -5,16 +5,17 @@ const collator = new Intl.Collator();
 
 export const sortAlbums = <
     A extends { path: string; order?: number },
-    F extends { filename: string; path: string },
+    F extends { filename: string; path?: string; resolved?: { path?: string } },
 >(
     albums: A[],
     files: F[]
 ): A[] => {
     const lastFilenameByTopPath = new Map<string, string>();
     for (const file of files) {
-        const slashIndex = file.path.indexOf('/');
+        const filePath = file.resolved?.path ?? file.path ?? 'NOT RESOLVED';
+        const slashIndex = filePath.indexOf('/');
         const topPath =
-            slashIndex === -1 ? file.path : file.path.slice(0, slashIndex);
+            slashIndex === -1 ? filePath : filePath.slice(0, slashIndex);
         lastFilenameByTopPath.set(topPath, file.filename);
     }
 

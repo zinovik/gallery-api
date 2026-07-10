@@ -28,7 +28,7 @@ export const resolveAccesses = (
 
 export const hasAccess = (
     userAccesses: string[],
-    targetAccesses: string[] = [],
+    targetAccesses: string[],
     path: string,
     accessedPath: string | undefined
 ) => {

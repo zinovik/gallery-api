@@ -6,6 +6,10 @@ export interface AlbumModel {
     order?: number;
     accesses?: string[];
     defaultAccesses?: string[];
+    resolved?: {
+        accesses?: string[];
+        title?: string;
+    };
 }
 
 export interface FileModel {
@@ -15,31 +19,40 @@ export interface FileModel {
     text?: string | string[];
     tags?: string[];
     accesses?: string[];
+    resolved?: {
+        accesses?: string[];
+        path?: string;
+        storagePath?: string;
+    };
 }
 
 export interface AlbumDTO {
     path: string;
-    title: string;
+    title?: string;
     text?: string | string[];
     filesAmount?: number;
     defaultByDate?: boolean;
     order?: number;
     accesses?: string[];
-    resolvedAccesses?: string[];
     defaultAccesses?: string[];
-    isDb?: true;
+    resolved?: {
+        accesses?: string[];
+        title?: string;
+    };
 }
 
 export interface FileDTO {
     filename: string;
-    path: string;
+    path?: string;
     url: string;
     description?: string;
     text?: string | string[];
     tags?: string[];
     accesses?: string[];
-    resolvedAccesses?: string[];
-    isDb?: true;
+    resolved?: {
+        accesses?: string[];
+        path?: string;
+    };
 }
 
 export interface RemovedAlbum {
@@ -60,14 +73,6 @@ export interface AddedAlbum {
     defaultAccesses?: string[];
 }
 
-export interface AddedFile {
-    filename: string;
-    path?: string;
-    description?: string;
-    text?: string | string[];
-    accesses?: string[];
-}
-
 export interface UpdatedAlbum {
     path: string;
     newPath?: string;
@@ -84,6 +89,7 @@ export interface UpdatedFile {
     path?: string;
     description?: string;
     text?: string | string[];
+    tags?: string[];
     accesses?: string[];
 }
 

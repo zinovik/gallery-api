@@ -2,6 +2,18 @@ import mongoose from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema()
+class Resolved {
+    @Prop({ type: [String], default: undefined })
+    accesses?: string[];
+
+    @Prop({ default: undefined })
+    path?: string;
+
+    @Prop({ default: undefined })
+    storagePath?: string;
+}
+
+@Schema()
 class File {
     @Prop({ required: true })
     filename!: string;
@@ -15,11 +27,14 @@ class File {
     @Prop({ type: mongoose.Schema.Types.Mixed, default: undefined })
     text?: string | string[];
 
-    @Prop({ default: undefined })
+    @Prop({ type: [String], default: undefined })
     tags?: string[];
 
-    @Prop({ default: undefined })
+    @Prop({ type: [String], default: undefined })
     accesses?: string[];
+
+    @Prop({ type: Resolved, default: undefined })
+    resolved?: Resolved;
 }
 
 const FileSchema = SchemaFactory.createForClass(File);

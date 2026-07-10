@@ -2,6 +2,15 @@ import mongoose from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema()
+class Resolved {
+    @Prop({ type: [String], default: undefined })
+    accesses?: string[];
+
+    @Prop({ default: undefined })
+    title?: string;
+}
+
+@Schema()
 class Album {
     @Prop({ required: true })
     path!: string;
@@ -23,6 +32,9 @@ class Album {
 
     @Prop({ default: undefined })
     order?: number;
+
+    @Prop({ type: Resolved, default: undefined })
+    resolved?: Resolved;
 }
 
 const AlbumSchema = SchemaFactory.createForClass(Album);
