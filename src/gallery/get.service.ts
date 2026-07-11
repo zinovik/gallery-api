@@ -52,6 +52,31 @@ export class GetService {
             )
         );
 
+        // POPULATE
+
+        const filePaths = new Set<string>();
+        accessibleFilesWithoutUrls.forEach((file) =>
+            filePaths.add(file.resolved?.path ?? file.path ?? 'NOT RESOLVED')
+        );
+
+        const albumPaths = new Set<string>();
+        accessibleAlbums.forEach((album) => albumPaths.add(album.path));
+
+        for (const filePath of filePaths) {
+            if (!albumPaths.has(filePath)) {
+                accessibleAlbums.push({
+                    path: filePath,
+                    resolved: {
+                        title: filePath
+                            .split('/')
+                            .slice(-1)[0]
+                            .replace(/-/g, ' ')
+                            .replace(/\b\w/g, (c) => c.toUpperCase()),
+                    },
+                });
+            }
+        }
+
         // SORT FILES
 
         const sortedFiles = sortFiles(accessibleFilesWithoutUrls);

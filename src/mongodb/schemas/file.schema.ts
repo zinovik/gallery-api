@@ -40,5 +40,6 @@ class File {
 const FileSchema = SchemaFactory.createForClass(File);
 
 FileSchema.index({ filename: 1 }, { unique: true });
+FileSchema.index({ 'resolved.path': 1 }, { unique: false });
 
 export { File, FileSchema };
