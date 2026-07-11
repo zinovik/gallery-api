@@ -28,8 +28,12 @@ export class GetService {
         // GET RAW
 
         const [dbFiles, dbAlbums] = await Promise.all([
-            this.storageService.getFiles(path, dateRanges, tags),
-            this.storageService.getAlbums(path, Boolean(dateRanges)),
+            this.storageService.getFiles(path, userAccesses, dateRanges, tags),
+            this.storageService.getAlbums(
+                path,
+                userAccesses,
+                Boolean(dateRanges) || Boolean(tags)
+            ),
         ]);
 
         // FILTER BY ACCESS

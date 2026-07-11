@@ -35,7 +35,12 @@ export class StorageService {
         private readonly cacheService: CacheService
     ) {}
 
-    async getAlbums(path: string, isByDate: boolean): Promise<AlbumModel[]> {
+    async getAlbums(
+        path: string,
+        userAccesses: string[],
+        isByDateOrTags: boolean
+    ): Promise<AlbumModel[]> {
+        // TODO: Add accesses to loadedPaths
         const loadedPaths =
             (await this.cacheService.getCache<Set<string>>(
                 ALBUMS_LOADED_PATHS_CACHE_KEY,
@@ -52,7 +57,7 @@ export class StorageService {
 
         const isAlreadyLoaded = this.getIsAlreadyLoaded(
             [...loadedPaths],
-            path === '' && isByDate ? ALL_LOADED_PATH : path,
+            path === '' && isByDateOrTags ? ALL_LOADED_PATH : path,
             ALL_LOADED_PATH
         );
 
@@ -62,9 +67,13 @@ export class StorageService {
 
         albums = this.uniqueAlbums(
             albums,
-            await this.mongoDbService.getAlbums(path, isByDate)
+            await this.mongoDbService.getAlbums(
+                path,
+                userAccesses,
+                isByDateOrTags
+            )
         );
-        loadedPaths.add(path === '' && isByDate ? ALL_LOADED_PATH : path);
+        loadedPaths.add(path === '' && isByDateOrTags ? ALL_LOADED_PATH : path);
 
         await this.cacheService.setCache<AlbumModel[]>(
             ALBUMS_CACHE_KEY,
@@ -85,9 +94,11 @@ export class StorageService {
 
     async getFiles(
         path: string,
+        userAccesses: string[],
         dateRanges?: string[][],
         tags?: string[]
     ): Promise<FileModel[]> {
+        // TODO: Add accesses to loadedPaths, add tags and dataRanges
         const loadedPaths =
             (await this.cacheService.getCache<Set<string>>(
                 FILES_LOADED_PATHS_CACHE_KEY,
@@ -114,7 +125,12 @@ export class StorageService {
 
         files = this.uniqueFiles(
             files,
-            await this.mongoDbService.getFiles(path, dateRanges, tags)
+            await this.mongoDbService.getFiles(
+                path,
+                userAccesses,
+                dateRanges,
+                tags
+            )
         );
         loadedPaths.add(path === '' ? ALL_LOADED_PATH : path);
 

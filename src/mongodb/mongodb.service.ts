@@ -30,6 +30,7 @@ export class MongoDbService {
 
     async getFiles(
         path: string,
+        _userAccesses: string[],
         _dateRanges?: string[][],
         _tags?: string[]
     ): Promise<FileModel[]> {
@@ -40,21 +41,18 @@ export class MongoDbService {
         let query;
 
         if (path) {
-            const pathParts = path.split('/');
-
-            const parentPaths = pathParts.map((_, index) =>
-                pathParts.slice(0, index + 1).join('/')
-            );
-
             query = {
                 'resolved.path': {
-                    $regex: `^(${parentPaths.slice(0, -1).join('$|^')}$|${path})(/|$)`,
+                    $regex: `^${path}(/|$)`,
                 },
+                // ...(tags ? { tags: { $in: tags } } : {}),
             };
         } else {
             // we need it to calculate the files amount TODO: avoid it
             // we need it to sort the albums TODO: avoid it
-            query = {};
+            query = {
+                // ...(tags ? { tags: { $in: tags } } : {}),
+            };
         }
 
         const files = await this.fileModel
@@ -110,7 +108,11 @@ export class MongoDbService {
             .exec();
     }
 
-    async getAlbums(path: string, isByDate: boolean): Promise<AlbumModel[]> {
+    async getAlbums(
+        path: string,
+        _userAccesses: string[],
+        isByDateOrTags: boolean
+    ): Promise<AlbumModel[]> {
         const logMessage = this.buildLogMessage('getAlbums', path);
 
         console.time(logMessage);
@@ -125,16 +127,23 @@ export class MongoDbService {
             );
 
             query = {
-                path: {
-                    $regex: `^(${parentPaths.slice(0, -1).join('$|^')}$|${path})(/|$)`,
-                },
+                $or: [
+                    ...parentPaths.slice(0, -1).map((parent) => ({
+                        path: parent,
+                    })),
+                    {
+                        path: {
+                            $regex: `^${path}(/|$)`,
+                        },
+                    },
+                ],
             };
         } else {
-            query = isByDate
+            query = isByDateOrTags
                 ? // we need it because we don't know the latest albums or albums that includes files with some tags TODO: avoid it
                   {}
                 : {
-                      path: { $not: /\// },
+                      path: { $not: { $regex: '/' } }, // root paths
                   };
         }
 
