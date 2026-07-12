@@ -40,16 +40,17 @@ export class StorageService {
         userAccesses: string[],
         isByDateOrTags: boolean
     ): Promise<AlbumModel[]> {
-        // TODO: Add accesses to loadedPaths
+        const userAccessesString = userAccesses.join(',');
+
         const loadedPaths =
             (await this.cacheService.getCache<Set<string>>(
-                ALBUMS_LOADED_PATHS_CACHE_KEY,
+                `${ALBUMS_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
                 true
             )) ?? new Set<string>();
 
         let albums =
             (await this.cacheService.getCache<AlbumModel[]>(
-                ALBUMS_CACHE_KEY,
+                `${ALBUMS_CACHE_KEY}:${userAccessesString}`,
                 true
             )) ?? [];
 
@@ -76,14 +77,14 @@ export class StorageService {
         loadedPaths.add(path === '' && isByDateOrTags ? ALL_LOADED_PATH : path);
 
         await this.cacheService.setCache<AlbumModel[]>(
-            ALBUMS_CACHE_KEY,
+            `${ALBUMS_CACHE_KEY}:${userAccessesString}`,
             albums,
             new Date(Date.now() + YEAR),
             true
         );
 
         await this.cacheService.setCache<Set<string>>(
-            ALBUMS_LOADED_PATHS_CACHE_KEY,
+            `${ALBUMS_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
             loadedPaths,
             new Date(Date.now() + YEAR),
             true
@@ -98,16 +99,18 @@ export class StorageService {
         dateRanges?: string[][],
         tags?: string[]
     ): Promise<FileModel[]> {
-        // TODO: Add accesses to loadedPaths, add tags and dataRanges
+        const userAccessesString = userAccesses.join(',');
+
+        // TODO: Add tags and dataRanges
         const loadedPaths =
             (await this.cacheService.getCache<Set<string>>(
-                FILES_LOADED_PATHS_CACHE_KEY,
+                `${FILES_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
                 true
             )) ?? new Set<string>();
 
         let files =
             (await this.cacheService.getCache<FileModel[]>(
-                FILES_CACHE_KEY,
+                `${FILES_CACHE_KEY}:${userAccessesString}`,
                 true
             )) ?? [];
 
@@ -135,14 +138,14 @@ export class StorageService {
         loadedPaths.add(path === '' ? ALL_LOADED_PATH : path);
 
         await this.cacheService.setCache<FileModel[]>(
-            FILES_CACHE_KEY,
+            `${FILES_CACHE_KEY}:${userAccessesString}`,
             files,
             new Date(Date.now() + YEAR),
             true
         );
 
         await this.cacheService.setCache<Set<string>>(
-            FILES_LOADED_PATHS_CACHE_KEY,
+            `${FILES_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
             loadedPaths,
             new Date(Date.now() + YEAR),
             true

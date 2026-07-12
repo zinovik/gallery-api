@@ -3,7 +3,7 @@ import { MongoDbService } from '../mongodb/mongodb.service';
 
 @Injectable()
 export class CacheService {
-    private readonly cacheMap = new Map<
+    private readonly internalCacheMap = new Map<
         string,
         { data: unknown; expiresAt: Date }
     >();
@@ -89,11 +89,15 @@ export class CacheService {
         console.time('cache invalidation');
 
         if (cacheKeys) {
-            for (const cacheKey of cacheKeys) {
-                this.cacheMap.delete(cacheKey);
+            for (const key of this.internalCacheMap.keys()) {
+                for (const cacheKey of cacheKeys) {
+                    if (key.startsWith(cacheKey)) {
+                        this.internalCacheMap.delete(key);
+                    }
+                }
             }
         } else {
-            this.cacheMap.clear();
+            this.internalCacheMap.clear();
         }
 
         if (!isInMemoryOnly) {
@@ -107,14 +111,14 @@ export class CacheService {
         const inMemoryCacheMap = new Map<string, T>();
 
         for (const cacheKey of cacheKeys) {
-            const cache = this.cacheMap.get(cacheKey);
+            const cache = this.internalCacheMap.get(cacheKey);
 
             if (!cache) {
                 continue;
             }
 
             if (cache.expiresAt.getTime() <= Date.now()) {
-                this.cacheMap.delete(cacheKey);
+                this.internalCacheMap.delete(cacheKey);
             } else {
                 inMemoryCacheMap.set(cacheKey, cache.data as T);
             }
@@ -127,7 +131,7 @@ export class CacheService {
         caches: { cacheKey: string; data: T; expiresAt: Date }[]
     ): void {
         for (const { cacheKey, data, expiresAt } of caches) {
-            this.cacheMap.set(cacheKey, {
+            this.internalCacheMap.set(cacheKey, {
                 data,
                 expiresAt,
             });
