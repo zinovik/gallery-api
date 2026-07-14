@@ -13,6 +13,7 @@ import { CacheService } from '../cache/cache.service';
 import { MongoDbService } from '../mongodb/mongodb.service';
 import { isThisOrChildPath } from './helper/common.helper';
 import { resolveAccesses } from './helper/access.helper';
+import { sortAlbums, sortFiles } from './helper/sort.helper';
 
 const BUCKET_NAME_FILES = 'gallery-files' as const;
 
@@ -518,6 +519,18 @@ export class StorageService {
         albumsWithResolvedAccesses.forEach((album) => {
             if (album.defaultAccesses) {
                 albumsWithDefaultAccesses.set(album.path, album);
+            }
+        });
+
+        const sortedAlbums = sortAlbums(
+            albumsWithResolvedAccesses,
+            sortFiles(filesWithResolvedAccesses)
+        );
+        let i = 1;
+        [...sortedAlbums].reverse().forEach((album) => {
+            if (!album.path.includes('/')) {
+                album.resolved.order = i;
+                i++;
             }
         });
 

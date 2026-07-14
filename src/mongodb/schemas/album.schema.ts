@@ -8,6 +8,9 @@ class Resolved {
 
     @Prop({ default: undefined })
     title?: string;
+
+    @Prop({ default: undefined })
+    order?: number;
 }
 
 @Schema()

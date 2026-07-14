@@ -9,6 +9,7 @@ export interface AlbumModel {
     resolved?: {
         accesses?: string[];
         title?: string;
+        order?: number;
     };
 }
 
