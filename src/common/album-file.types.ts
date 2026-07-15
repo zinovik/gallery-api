@@ -24,6 +24,7 @@ export interface FileModel {
         accesses?: string[];
         path?: string;
         storagePath?: string;
+        rootPath?: string;
     };
 }
 
@@ -101,4 +102,10 @@ export interface SignedUrlModel {
 
 export interface SignedUrlModelRead extends SignedUrlModel {
     expiresAt: number;
+}
+
+export interface TokenAccess {
+    path: string;
+    dateRanges?: string[][];
+    tags?: string[];
 }

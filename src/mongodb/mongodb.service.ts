@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { AlbumModel, FileModel } from '../common/album-file.types';
+import { AlbumModel, FileModel, TokenAccess } from '../common/album-file.types';
 import { File } from './schemas/file.schema';
 import { Album } from './schemas/album.schema';
 import { User } from './schemas/user.schema';
@@ -9,6 +9,9 @@ import { Cache } from './schemas/cache.schema';
 
 @Injectable()
 export class MongoDbService {
+    private readonly ACCESS_ADMIN = 'admin';
+    private readonly ACCESS_PUBLIC = 'public';
+
     constructor(
         @InjectModel('File') private fileModel: Model<File>,
         @InjectModel('Album') private albumModel: Model<Album>,
@@ -28,32 +31,112 @@ export class MongoDbService {
             .exec();
     }
 
+    private getDateRangesQueryPart(dateRanges?: string[][]) {
+        if (!dateRanges) {
+            return [];
+        }
+
+        return [
+            {
+                $or: dateRanges.map(([from, to]) => ({
+                    filename: {
+                        ...(from ? { $gte: from } : {}),
+                        ...(to ? { $lte: to } : {}),
+                    },
+                })),
+            },
+        ];
+    }
+
+    private getAccessesQueryPart(userAccesses: string[]) {
+        if (userAccesses.includes(this.ACCESS_ADMIN)) {
+            return [];
+        }
+
+        return [
+            {
+                $or: [
+                    {
+                        'resolved.accesses': this.ACCESS_PUBLIC,
+                    },
+                    ...(userAccesses.length
+                        ? [
+                              {
+                                  'resolved.accesses': {
+                                      $in: userAccesses,
+                                  },
+                              },
+                          ]
+                        : []),
+                ],
+            },
+        ];
+    }
+
+    private getFilesQuery(
+        path: string,
+        userAccesses: string[],
+        dateRanges?: string[][],
+        tags?: string[],
+        tokenAccess?: TokenAccess
+    ) {
+        return {
+            $or: [
+                ...(tokenAccess
+                    ? [
+                          {
+                              $and: [
+                                  {
+                                      'resolved.path': {
+                                          $regex: `^${tokenAccess.path}(/|$)`,
+                                      },
+                                  },
+                                  ...this.getDateRangesQueryPart(
+                                      tokenAccess.dateRanges
+                                  ),
+                                  ...(tokenAccess.tags
+                                      ? [{ tags: { $in: tokenAccess.tags } }]
+                                      : []),
+                              ],
+                          },
+                      ]
+                    : []),
+                {
+                    $and: [
+                        ...(path
+                            ? [{ 'resolved.path': { $regex: `^${path}(/|$)` } }]
+                            : []),
+                        ...this.getDateRangesQueryPart(dateRanges),
+                        ...(tags ? [{ tags: { $in: tags } }] : []),
+                        ...this.getAccessesQueryPart(userAccesses),
+                    ],
+                },
+            ],
+        };
+    }
+
     async getFiles(
         path: string,
-        _userAccesses: string[],
-        _dateRanges?: string[][],
-        _tags?: string[]
+        userAccesses: string[],
+        dateRanges?: string[][],
+        tags?: string[],
+        tokenAccess?: TokenAccess
     ): Promise<FileModel[]> {
+        if (!path && !dateRanges && !tags) {
+            return [];
+        }
+
         const logMessage = this.buildLogMessage('getFiles', path);
 
         console.time(logMessage);
 
-        let query;
-
-        if (path) {
-            query = {
-                'resolved.path': {
-                    $regex: `^${path}(/|$)`,
-                },
-                // ...(tags ? { tags: { $in: tags } } : {}),
-            };
-        } else {
-            // we need it to calculate the files amount TODO: avoid it
-            // we need it to sort the albums TODO: avoid it
-            query = {
-                // ...(tags ? { tags: { $in: tags } } : {}),
-            };
-        }
+        const query = this.getFilesQuery(
+            path,
+            userAccesses,
+            dateRanges,
+            tags,
+            tokenAccess
+        );
 
         const files = await this.fileModel
             .find(query, this.MONGO_FIELD_REMOVED)
@@ -62,7 +145,7 @@ export class MongoDbService {
 
         console.timeEnd(logMessage);
 
-        console.log('getFiles', files.length);
+        console.log('getFiles', JSON.stringify(query, null, 2), files.length);
 
         return files;
     }
@@ -108,44 +191,78 @@ export class MongoDbService {
             .exec();
     }
 
+    private getAlbumsQuery(
+        path: string,
+        userAccesses: string[],
+        isByDateOrTags: boolean,
+        tokenAccess?: TokenAccess
+    ) {
+        const pathParts = path.split('/');
+
+        const parentPaths = pathParts.map((_, index) =>
+            pathParts.slice(0, index + 1).join('/')
+        );
+
+        return {
+            $or: [
+                ...(tokenAccess
+                    ? [
+                          {
+                              'resolved.path': {
+                                  $regex: `^${tokenAccess.path}(/|$)`,
+                              },
+                          },
+                      ]
+                    : []),
+                {
+                    $and: [
+                        ...(path
+                            ? [
+                                  {
+                                      $or: [
+                                          ...parentPaths
+                                              .slice(0, -1)
+                                              .map((parent) => ({
+                                                  path: parent,
+                                              })),
+                                          {
+                                              path: {
+                                                  $regex: `^${path}(/|$)`,
+                                              },
+                                          },
+                                      ],
+                                  },
+                              ]
+                            : isByDateOrTags
+                              ? [] // we need it because we don't know the latest albums or albums that includes files with some tags TODO: avoid it
+                              : [
+                                    {
+                                        path: { $not: { $regex: '/' } }, // root paths
+                                    },
+                                ]),
+                        ...this.getAccessesQueryPart(userAccesses),
+                    ],
+                },
+            ],
+        };
+    }
+
     async getAlbums(
         path: string,
-        _userAccesses: string[],
-        isByDateOrTags: boolean
+        userAccesses: string[],
+        isByDateOrTags: boolean,
+        tokenAccess?: TokenAccess
     ): Promise<AlbumModel[]> {
         const logMessage = this.buildLogMessage('getAlbums', path);
 
         console.time(logMessage);
 
-        let query;
-
-        if (path) {
-            const pathParts = path.split('/');
-
-            const parentPaths = pathParts.map((_, index) =>
-                pathParts.slice(0, index + 1).join('/')
-            );
-
-            query = {
-                $or: [
-                    ...parentPaths.slice(0, -1).map((parent) => ({
-                        path: parent,
-                    })),
-                    {
-                        path: {
-                            $regex: `^${path}(/|$)`,
-                        },
-                    },
-                ],
-            };
-        } else {
-            query = isByDateOrTags
-                ? // we need it because we don't know the latest albums or albums that includes files with some tags TODO: avoid it
-                  {}
-                : {
-                      path: { $not: { $regex: '/' } }, // root paths
-                  };
-        }
+        const query = this.getAlbumsQuery(
+            path,
+            userAccesses,
+            isByDateOrTags,
+            tokenAccess
+        );
 
         const albums = await this.albumModel
             .find(query, this.MONGO_FIELD_REMOVED)
@@ -154,7 +271,70 @@ export class MongoDbService {
 
         console.timeEnd(logMessage);
 
-        console.log('getAlbums', albums.length);
+        console.log('getAlbums', JSON.stringify(query, null, 2), albums.length);
+
+        return albums;
+    }
+
+    async getRootAlbumsWithFileAmounts(
+        userAccesses: string[]
+    ): Promise<AlbumModel[]> {
+        const logMessage = this.buildLogMessage('getRootAlbumsWithFileAmounts');
+
+        console.time(logMessage);
+
+        const query = this.getAlbumsQuery('', userAccesses, false);
+
+        const albums = await this.albumModel
+            .aggregate([
+                {
+                    $match: query,
+                },
+                {
+                    $lookup: {
+                        from: 'files',
+                        localField: 'path',
+                        foreignField: 'resolved.rootPath',
+                        pipeline: [
+                            {
+                                $match: {
+                                    ...this.getAccessesQueryPart(
+                                        userAccesses
+                                    )[0],
+                                },
+                            },
+                            {
+                                $count: 'count',
+                            },
+                        ],
+                        as: 'filesAmountStats',
+                    },
+                },
+                {
+                    $set: {
+                        filesAmount: {
+                            $ifNull: [
+                                {
+                                    $arrayElemAt: [
+                                        '$filesAmountStats.count',
+                                        0,
+                                    ],
+                                },
+                                0,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $project: {
+                        ...this.MONGO_FIELD_REMOVED,
+                        filesAmountStats: 0,
+                    },
+                },
+            ])
+            .exec();
+
+        console.timeEnd(logMessage);
 
         return albums;
     }

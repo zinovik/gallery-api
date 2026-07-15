@@ -6,88 +6,103 @@ import {
     FileModel,
     RemovedAlbum,
     RemovedFile,
+    TokenAccess,
     UpdatedAlbum,
     UpdatedFile,
 } from '../common/album-file.types';
 import { CacheService } from '../cache/cache.service';
 import { MongoDbService } from '../mongodb/mongodb.service';
-import { isThisOrChildPath } from './helper/common.helper';
 import { resolveAccesses } from './helper/access.helper';
 import { sortAlbums, sortFiles } from './helper/sort.helper';
 
-const BUCKET_NAME_FILES = 'gallery-files' as const;
-
-const FILES_CACHE_KEY = 'files' as const;
-const FILES_LOADED_PATHS_CACHE_KEY = 'files-loaded-paths' as const;
-const ALBUMS_CACHE_KEY = 'albums' as const;
-const ALBUMS_LOADED_PATHS_CACHE_KEY = 'albums-loaded-paths' as const;
+const FILES_CACHE_KEY_PREFIX = 'files' as const;
+const ALBUMS_CACHE_KEY_PREFIX = 'albums' as const;
 const STORAGE_FILE_PATHS_CACHE_KEY = 'storage-file-paths' as const;
-
-const URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
-const YEAR = 1000 * 60 * 60 * 24 * 365;
-const MINUTE = 1000 * 60;
 
 @Injectable()
 export class StorageService {
     private readonly storage: Storage = new Storage();
+
+    private readonly BUCKET_NAME_FILES = 'gallery-files' as const;
+
+    private readonly URL_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - maximum
+    private readonly YEAR = 1000 * 60 * 60 * 24 * 365;
+    private readonly MINUTE = 1000 * 60;
 
     constructor(
         private readonly mongoDbService: MongoDbService,
         private readonly cacheService: CacheService
     ) {}
 
+    private getAlbumsCacheKey(
+        path: string,
+        userAccesses: string[],
+        isByDateOrTags: boolean,
+        tokenAccess?: TokenAccess
+    ) {
+        const userAccessesPart = userAccesses.join(',');
+        const tokenAccessPart = JSON.stringify(tokenAccess);
+
+        return `${ALBUMS_CACHE_KEY_PREFIX}:${path}:${userAccessesPart}:${isByDateOrTags}:${tokenAccessPart}`;
+    }
+
+    private getFilesCacheKey(
+        path: string,
+        userAccesses: string[],
+        dateRanges?: string[][],
+        tags?: string[],
+        tokenAccess?: TokenAccess
+    ) {
+        const userAccessesPart = userAccesses.join(',');
+        const dateRangesPart = dateRanges
+            ?.map((dateRange) => dateRange.join(','))
+            .join(';');
+        const tagsPart = tags?.join(',');
+        const tokenAccessPart = JSON.stringify(tokenAccess);
+
+        return `${FILES_CACHE_KEY_PREFIX}:${path}:${userAccessesPart}:${dateRangesPart}:${tagsPart}:${tokenAccessPart}`;
+    }
+
     async getAlbums(
         path: string,
         userAccesses: string[],
-        isByDateOrTags: boolean
+        isByDateOrTags: boolean,
+        tokenAccess?: TokenAccess
     ): Promise<AlbumModel[]> {
-        const userAccessesString = userAccesses.join(',');
-
-        const loadedPaths =
-            (await this.cacheService.getCache<Set<string>>(
-                `${ALBUMS_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
-                true
-            )) ?? new Set<string>();
-
-        let albums =
-            (await this.cacheService.getCache<AlbumModel[]>(
-                `${ALBUMS_CACHE_KEY}:${userAccessesString}`,
-                true
-            )) ?? [];
-
-        const ALL_LOADED_PATH = 'ALL';
-
-        const isAlreadyLoaded = this.getIsAlreadyLoaded(
-            [...loadedPaths],
-            path === '' && isByDateOrTags ? ALL_LOADED_PATH : path,
-            ALL_LOADED_PATH
+        const cacheKey = this.getAlbumsCacheKey(
+            path,
+            userAccesses,
+            isByDateOrTags,
+            tokenAccess
         );
 
-        if (isAlreadyLoaded) {
-            return albums;
-        }
-
-        albums = this.uniqueAlbums(
-            albums,
-            await this.mongoDbService.getAlbums(
-                path,
-                userAccesses,
-                isByDateOrTags
-            )
-        );
-        loadedPaths.add(path === '' && isByDateOrTags ? ALL_LOADED_PATH : path);
-
-        await this.cacheService.setCache<AlbumModel[]>(
-            `${ALBUMS_CACHE_KEY}:${userAccessesString}`,
-            albums,
-            new Date(Date.now() + YEAR),
+        let albums = await this.cacheService.getCache<AlbumModel[]>(
+            cacheKey,
             true
         );
 
-        await this.cacheService.setCache<Set<string>>(
-            `${ALBUMS_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
-            loadedPaths,
-            new Date(Date.now() + YEAR),
+        if (albums) {
+            return albums;
+        }
+
+        if (path || isByDateOrTags) {
+            albums = await this.mongoDbService.getAlbums(
+                path,
+                userAccesses,
+                isByDateOrTags,
+                tokenAccess
+            );
+        } else {
+            albums =
+                await this.mongoDbService.getRootAlbumsWithFileAmounts(
+                    userAccesses
+                );
+        }
+
+        await this.cacheService.setCache<AlbumModel[]>(
+            cacheKey,
+            albums,
+            new Date(Date.now() + this.YEAR),
             true
         );
 
@@ -98,57 +113,38 @@ export class StorageService {
         path: string,
         userAccesses: string[],
         dateRanges?: string[][],
-        tags?: string[]
+        tags?: string[],
+        tokenAccess?: TokenAccess
     ): Promise<FileModel[]> {
-        const userAccessesString = userAccesses.join(',');
-
-        // TODO: Add tags and dataRanges
-        const loadedPaths =
-            (await this.cacheService.getCache<Set<string>>(
-                `${FILES_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
-                true
-            )) ?? new Set<string>();
-
-        let files =
-            (await this.cacheService.getCache<FileModel[]>(
-                `${FILES_CACHE_KEY}:${userAccessesString}`,
-                true
-            )) ?? [];
-
-        const ALL_LOADED_PATH = 'ALL';
-
-        const isAlreadyLoaded = this.getIsAlreadyLoaded(
-            [...loadedPaths],
-            path === '' ? ALL_LOADED_PATH : path,
-            ALL_LOADED_PATH
+        const cacheKey = this.getFilesCacheKey(
+            path,
+            userAccesses,
+            dateRanges,
+            tags,
+            tokenAccess
         );
 
-        if (isAlreadyLoaded) {
-            return files;
-        }
-
-        files = this.uniqueFiles(
-            files,
-            await this.mongoDbService.getFiles(
-                path,
-                userAccesses,
-                dateRanges,
-                tags
-            )
-        );
-        loadedPaths.add(path === '' ? ALL_LOADED_PATH : path);
-
-        await this.cacheService.setCache<FileModel[]>(
-            `${FILES_CACHE_KEY}:${userAccessesString}`,
-            files,
-            new Date(Date.now() + YEAR),
+        let files = await this.cacheService.getCache<FileModel[]>(
+            cacheKey,
             true
         );
 
-        await this.cacheService.setCache<Set<string>>(
-            `${FILES_LOADED_PATHS_CACHE_KEY}:${userAccessesString}`,
-            loadedPaths,
-            new Date(Date.now() + YEAR),
+        if (files) {
+            return files;
+        }
+
+        files = await this.mongoDbService.getFiles(
+            path,
+            userAccesses,
+            dateRanges,
+            tags,
+            tokenAccess
+        );
+
+        await this.cacheService.setCache<FileModel[]>(
+            cacheKey,
+            files,
+            new Date(Date.now() + this.YEAR),
             true
         );
 
@@ -209,7 +205,9 @@ export class StorageService {
                         newCaches.push({
                             cacheKey: filePath,
                             data: url,
-                            expiresAt: new Date(now + URL_TTL - MINUTE), // 1 minute less because mongo removes it once per minute
+                            expiresAt: new Date(
+                                now + this.URL_TTL - this.MINUTE
+                            ), // 1 minute less because mongo removes it once per minute
                         });
                     }
                 })
@@ -237,7 +235,7 @@ export class StorageService {
             console.time(
                 '🔴 GOOGLE CLOUD STORAGE: getStorageFilePaths.getFiles'
             );
-            const bucket = this.storage.bucket(BUCKET_NAME_FILES);
+            const bucket = this.storage.bucket(this.BUCKET_NAME_FILES);
             const [files] = await bucket.getFiles();
             storageFilePaths = files.map((file) => file.name);
             console.timeEnd(
@@ -248,7 +246,7 @@ export class StorageService {
                 {
                     cacheKey: STORAGE_FILE_PATHS_CACHE_KEY,
                     data: storageFilePaths,
-                    expiresAt: new Date(Date.now() + YEAR),
+                    expiresAt: new Date(Date.now() + this.YEAR),
                 },
             ]);
         }
@@ -257,13 +255,13 @@ export class StorageService {
     }
 
     private async getSignedUrl(filePath: string): Promise<string> {
-        const bucket = this.storage.bucket(BUCKET_NAME_FILES);
+        const bucket = this.storage.bucket(this.BUCKET_NAME_FILES);
 
         try {
             const [url] = await bucket.file(filePath).getSignedUrl({
                 version: 'v4',
                 action: 'read',
-                expires: Date.now() + URL_TTL,
+                expires: Date.now() + this.URL_TTL,
             });
 
             return url;
@@ -426,42 +424,6 @@ export class StorageService {
         );
     }
 
-    private uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
-        const seen = new Set<string>();
-
-        return items.filter((item) => {
-            const value = key(item);
-
-            if (seen.has(value)) {
-                return false;
-            }
-
-            seen.add(value);
-            return true;
-        });
-    }
-
-    private uniqueFiles(...fileGroups: FileModel[][]): FileModel[] {
-        return this.uniqueBy(fileGroups.flat(), (file) => file.filename);
-    }
-
-    private uniqueAlbums(...albumGroups: AlbumModel[][]): AlbumModel[] {
-        return this.uniqueBy(albumGroups.flat(), (album) => album.path);
-    }
-
-    private getIsAlreadyLoaded(
-        loadedPaths: string[],
-        currentPath: string,
-        allLoadedPath: string
-    ): boolean {
-        return (
-            loadedPaths.includes(allLoadedPath) ||
-            loadedPaths.some((loadedPath) =>
-                isThisOrChildPath(currentPath, loadedPath)
-            )
-        );
-    }
-
     async resolve(storageFilesHaveBeenChanged?: true): Promise<void> {
         const [storageFilePaths, dbFiles, dbAlbums] = await Promise.all([
             this.getStorageFilePaths(storageFilesHaveBeenChanged),
@@ -600,6 +562,7 @@ export class StorageService {
                     ...file?.resolved,
                     path,
                     storagePath: storageFilePath,
+                    rootPath: path.split('/')[0],
                 },
             });
         }
@@ -672,7 +635,7 @@ export class StorageService {
 
     private cleanFiles(
         files: FileModel[],
-        _albumsWithDefaultAccesses: Map<string, AlbumModel>
+        albumsWithDefaultAccesses: Map<string, AlbumModel>
     ): {
         filename: string;
         set?: Partial<FileModel>;

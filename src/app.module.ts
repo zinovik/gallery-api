@@ -9,7 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration, { Configuration } from './app/configuration';
 import { JwtService } from '@nestjs/jwt';
 import { JwtUpdateInterceptor } from './auth/jwt-update.interceptor';
-import { JwtParamToTokenPathMiddleware } from './auth/jwt-param-to-token-path.middleware';
+import { JwtParamToTokenAccessMiddleware } from './auth/jwt-param-to-token-access.middleware';
 import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
@@ -56,7 +56,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 export class AppModule {
     configure(consumer: MiddlewareConsumer) {
         consumer.apply(JwtToUserMiddleware).forRoutes('*');
-        consumer.apply(JwtParamToTokenPathMiddleware).forRoutes('get');
-        consumer.apply(JwtParamToTokenPathMiddleware).forRoutes('get/*path');
+        consumer.apply(JwtParamToTokenAccessMiddleware).forRoutes('get');
+        consumer.apply(JwtParamToTokenAccessMiddleware).forRoutes('get/*path');
     }
 }

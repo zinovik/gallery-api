@@ -11,6 +11,9 @@ class Resolved {
 
     @Prop({ default: undefined })
     storagePath?: string;
+
+    @Prop({ default: undefined })
+    rootPath?: string;
 }
 
 @Schema()
@@ -40,6 +43,13 @@ class File {
 const FileSchema = SchemaFactory.createForClass(File);
 
 FileSchema.index({ filename: 1 }, { unique: true });
-FileSchema.index({ 'resolved.path': 1 }, { unique: false });
+FileSchema.index(
+    { 'resolved.path': 1, 'resolved.accesses': 1 },
+    { unique: false }
+);
+FileSchema.index(
+    { 'resolved.rootPath': 1, 'resolved.accesses': 1 },
+    { unique: false }
+);
 
 export { File, FileSchema };

@@ -43,5 +43,6 @@ class Album {
 const AlbumSchema = SchemaFactory.createForClass(Album);
 
 AlbumSchema.index({ path: 1 }, { unique: true });
+AlbumSchema.index({ path: 1, 'resolved.accesses': 1 }, { unique: false });
 
 export { Album, AlbumSchema };

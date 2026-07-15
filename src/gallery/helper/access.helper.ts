@@ -1,8 +1,4 @@
 import { AlbumModel } from '../../common/album-file.types';
-import { isThisOrChildOrParentPath } from './common.helper';
-
-const ACCESS_ADMIN = 'admin';
-const ACCESS_PUBLIC = 'public';
 
 export const resolveAccesses = (
     accesses: string[] | undefined,
@@ -24,22 +20,4 @@ export const resolveAccesses = (
     }
 
     return undefined;
-};
-
-export const hasAccess = (
-    userAccesses: string[],
-    targetAccesses: string[],
-    path: string,
-    tokenPath: string | undefined
-) => {
-    if (tokenPath && isThisOrChildOrParentPath(path, tokenPath)) {
-        return true;
-    }
-
-    return (
-        userAccesses.includes(ACCESS_ADMIN) ||
-        targetAccesses.includes(ACCESS_PUBLIC) ||
-        (targetAccesses.length > 0 &&
-            targetAccesses.some((access) => userAccesses.includes(access)))
-    );
 };

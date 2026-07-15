@@ -9,7 +9,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { SkipAuthGuard } from '../common/skip-auth-guard.decorator';
-import { AlbumDTO, FileDTO } from '../common/album-file.types';
+import { AlbumDTO, FileDTO, TokenAccess } from '../common/album-file.types';
 import { User } from '../common/user.type';
 import { GoogleAuthGuard } from '../auth/google-auth.guard';
 import { EditGuard } from '../auth/edit.guard';
@@ -33,7 +33,7 @@ export class GalleryController {
         request: Request & {
             user?: User;
             token?: string;
-            tokenPath?: string;
+            tokenAccess?: TokenAccess;
         },
         @Query('date-ranges') dateRanges: string,
         @Query('tags') tags: string,
@@ -47,7 +47,7 @@ export class GalleryController {
             (path || '').replace(/,/g, '/'),
             request.user?.accesses,
             request.user?.isEditAccess,
-            request.tokenPath, // TODO: dateRanges and tags
+            request.tokenAccess,
             dateRanges?.split(',').map((dateRange) => dateRange.split('-')),
             tags?.split(',')
         );
@@ -67,10 +67,7 @@ export class GalleryController {
         await this.storageService.updateAlbums(body.update?.albums);
         await this.storageService.addAlbums(body.add?.albums);
 
-        await this.cacheService.invalidate(
-            ['albums', 'files', 'albums-loaded-paths', 'files-loaded-paths'],
-            true
-        );
+        await this.cacheService.invalidate(['albums:', 'files:'], true);
 
         return { success: true };
     }
@@ -78,12 +75,9 @@ export class GalleryController {
     @Post('resolve')
     @UseGuards(EditGuard)
     async resolve(): Promise<{ success: boolean }> {
-        await this.storageService.resolve(true);
+        await this.storageService.resolve();
 
-        await this.cacheService.invalidate(
-            ['albums', 'files', 'albums-loaded-paths', 'files-loaded-paths'],
-            true
-        );
+        await this.cacheService.invalidate(['albums:', 'files:'], true);
 
         return { success: true };
     }
@@ -95,13 +89,9 @@ export class GalleryController {
         await this.storageService.resolve(true);
 
         await this.cacheService.invalidate([
-            'albums',
-            'files',
-            'albums-loaded-paths',
-            'files-loaded-paths',
+            'albums:',
+            'files:',
             'all-users',
-            'files-loaded-paths',
-            'albums-loaded-paths',
             'storage-file-paths',
         ]);
 

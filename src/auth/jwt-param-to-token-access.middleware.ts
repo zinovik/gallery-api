@@ -4,9 +4,10 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../common/user.type';
 import { ConfigService } from '@nestjs/config';
 import { Configuration } from '../app/configuration';
+import { TokenAccess } from '../common/album-file.types';
 
 @Injectable()
-export class JwtParamToTokenPathMiddleware implements NestMiddleware {
+export class JwtParamToTokenAccessMiddleware implements NestMiddleware {
     constructor(
         private jwtService: JwtService,
         private configService: ConfigService<Configuration, true>
@@ -16,7 +17,7 @@ export class JwtParamToTokenPathMiddleware implements NestMiddleware {
         request: Request & {
             user?: User;
             token?: string;
-            tokenPath?: string;
+            tokenAccess?: TokenAccess;
         },
         _response: Response,
         next: NextFunction
@@ -35,8 +36,11 @@ export class JwtParamToTokenPathMiddleware implements NestMiddleware {
                 }),
             });
 
-            // TODO: dateRanges and tags
-            request['tokenPath'] = payload.path;
+            request['tokenAccess'] = {
+                path: payload.path,
+                dateRanges: payload.dateRanges,
+                tags: payload.tags,
+            };
         } catch {
             next();
             return;
