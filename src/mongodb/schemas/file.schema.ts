@@ -47,6 +47,7 @@ FileSchema.index(
     { 'resolved.path': 1, 'resolved.accesses': 1 },
     { unique: false }
 );
+FileSchema.index({ 'resolved.rootPath': 1 }, { unique: false });
 FileSchema.index(
     { 'resolved.rootPath': 1, 'resolved.accesses': 1 },
     { unique: false }

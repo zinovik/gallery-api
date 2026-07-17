@@ -181,7 +181,7 @@ export class MongoDbService {
     }
 
     async removeFiles(filenames: string[]): Promise<void> {
-        await this.fileModel.deleteMany({ filenames: { $in: filenames } });
+        await this.fileModel.deleteMany({ filename: { $in: filenames } });
     }
 
     async getAllAlbums(): Promise<AlbumModel[]> {
@@ -370,7 +370,7 @@ export class MongoDbService {
     }
 
     async removeAlbums(paths: string[]): Promise<void> {
-        await this.albumModel.deleteMany({ paths: { $in: paths } });
+        await this.albumModel.deleteMany({ path: { $in: paths } });
     }
 
     async getUsers(emails?: string[]): Promise<User[]> {
