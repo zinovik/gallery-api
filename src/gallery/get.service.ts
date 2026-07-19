@@ -80,6 +80,7 @@ export class GetService {
                               ...file.resolved,
                               storagePath: undefined,
                               rootPath: undefined,
+                              _id: undefined,
                           },
                       }
                     : {
@@ -92,19 +93,27 @@ export class GetService {
                       }),
             })),
 
-            albums: isEditAccess
-                ? dbAlbums
-                : dbAlbums.map((album) => ({
-                      ...album,
-                      title:
-                          album.resolved?.title ??
-                          album.title ??
-                          'NOT RESOLVED',
-                      order: album.resolved?.order ?? album.order,
-                      accesses: undefined as undefined,
-                      defaultAccesses: undefined as undefined,
-                      resolved: undefined as undefined,
-                  })),
+            albums: dbAlbums.map((album) =>
+                isEditAccess
+                    ? {
+                          ...album,
+                          resolved: {
+                              ...album.resolved,
+                              _id: undefined as undefined,
+                          },
+                      }
+                    : {
+                          ...album,
+                          title:
+                              album.resolved?.title ??
+                              album.title ??
+                              'NOT RESOLVED',
+                          order: album.resolved?.order ?? album.order,
+                          accesses: undefined as undefined,
+                          defaultAccesses: undefined as undefined,
+                          resolved: undefined as undefined,
+                      }
+            ),
         };
     }
 }
