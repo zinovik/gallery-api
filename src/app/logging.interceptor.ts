@@ -11,22 +11,22 @@ export class LoggingInterceptor implements NestInterceptor {
 
         const now = Date.now();
 
-        console.log(
-            `[${now}] user: ${request.user?.email} (${
-                request.user?.sessionId
-            }) | url: ${request.url} | body: ${JSON.stringify(
-                request.body
-            )} | user-agent: ${request.headers['user-agent']}`
-        );
+        return next.handle().pipe(
+            tap(() => {
+                const userPart = request.user
+                    ? ` user: ${request.user?.email} (${
+                          request.user?.sessionId
+                      })`
+                    : '';
+                const urlPart = request.url;
+                const bodyPart = request.body
+                    ? ` | body: ${JSON.stringify(request.body)}`
+                    : '';
 
-        return next
-            .handle()
-            .pipe(
-                tap(() =>
-                    console.log(
-                        `[${now}] request finished in ${Date.now() - now} ms`
-                    )
-                )
-            );
+                console.log(
+                    `[${Date.now() - now} ms] ${urlPart}${userPart}${bodyPart}`
+                );
+            })
+        );
     }
 }
