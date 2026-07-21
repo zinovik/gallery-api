@@ -43,6 +43,10 @@ export class GalleryController {
         files: FileDTO[];
         user?: User;
     }> {
+        if (!request.user) {
+            return { albums: [], files: [] };
+        }
+
         const data = await this.getService.get(
             (path || '').replace(/,/g, '/'),
             request.user?.accesses,
