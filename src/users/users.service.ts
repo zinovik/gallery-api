@@ -30,8 +30,14 @@ export class UsersService {
             );
         }
 
+        const user = users.find((user) => user.email === email);
+
+        if (!user) {
+            console.log(`A new user: ${email}`);
+        }
+
         return (
-            users.find((user) => user.email === email) || {
+            user ?? {
                 email,
                 accesses: [],
                 isEditAccess: false,

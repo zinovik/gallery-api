@@ -145,7 +145,7 @@ export class MongoDbService {
 
         console.timeEnd(logMessage);
 
-        console.log('getFiles', JSON.stringify(query, null, 2), files.length);
+        // console.log('getFiles', JSON.stringify(query, null, 2), files.length);
 
         return files;
     }
@@ -271,7 +271,7 @@ export class MongoDbService {
 
         console.timeEnd(logMessage);
 
-        console.log('getAlbums', JSON.stringify(query, null, 2), albums.length);
+        // console.log('getAlbums', JSON.stringify(query, null, 2), albums.length);
 
         return albums;
     }

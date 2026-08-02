@@ -43,7 +43,7 @@ export class GalleryController {
         files: FileDTO[];
         user?: User;
     }> {
-        if (!request.user) {
+        if (!request.user && !request.tokenAccess) {
             return { albums: [], files: [] };
         }
 
