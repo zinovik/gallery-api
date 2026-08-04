@@ -67,11 +67,13 @@ export class AuthController {
         @Param('path') path: string,
         @Query('date-ranges') dateRanges: string,
         @Query('tags') tags: string,
+        @Query('accesses') accesses: string,
         @Query() { expires_in_h: expiresInH }: ShareQueryInDto
     ) {
         const token = await this.authService.getSharedAlbumToken(
             path.replace(/,/g, '/'),
             expiresInH * 60 * 60,
+            accesses.split(','),
             dateRanges?.split(',').map((dateRange) => dateRange.split('-')),
             tags?.split(',')
         );

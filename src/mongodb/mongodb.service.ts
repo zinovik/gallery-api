@@ -91,6 +91,9 @@ export class MongoDbService {
                                           $regex: `^${tokenAccess.path}(/|$)`,
                                       },
                                   },
+                                  ...this.getAccessesQueryPart(
+                                      tokenAccess.accesses
+                                  ),
                                   ...this.getDateRangesQueryPart(
                                       tokenAccess.dateRanges
                                   ),
@@ -208,9 +211,16 @@ export class MongoDbService {
                 ...(tokenAccess
                     ? [
                           {
-                              'resolved.path': {
-                                  $regex: `^${tokenAccess.path}(/|$)`,
-                              },
+                              $and: [
+                                  {
+                                      'resolved.path': {
+                                          $regex: `^${tokenAccess.path}(/|$)`,
+                                      },
+                                  },
+                                  ...this.getAccessesQueryPart(
+                                      tokenAccess.accesses
+                                  ),
+                              ],
                           },
                       ]
                     : []),

@@ -79,11 +79,12 @@ export class AuthService {
     async getSharedAlbumToken(
         path: string,
         expiresIn: number,
+        accesses: string[],
         dateRanges?: string[][],
         tags?: string[]
     ) {
         return await this.jwtService.signAsync(
-            { path, dateRanges, tags },
+            { path, dateRanges, tags, accesses },
             { expiresIn }
         );
     }

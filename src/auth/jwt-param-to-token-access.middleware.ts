@@ -40,6 +40,7 @@ export class JwtParamToTokenAccessMiddleware implements NestMiddleware {
                 path: payload.path,
                 dateRanges: payload.dateRanges,
                 tags: payload.tags,
+                accesses: payload.accesses,
             };
         } catch {
             next();

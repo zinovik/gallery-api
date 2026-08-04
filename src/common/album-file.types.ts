@@ -108,4 +108,5 @@ export interface TokenAccess {
     path: string;
     dateRanges?: string[][];
     tags?: string[];
+    accesses: string[];
 }
