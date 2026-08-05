@@ -433,7 +433,28 @@ export class StorageService {
 
         // POPULATE (RESOLVE FILE PATH AND STORAGE PATH, AND ALBUM TITLE)
 
-        const populatedFiles = this.populateFiles(storageFilePaths, dbFiles);
+        const storageFileNamesSet = new Set(
+            storageFilePaths.map((storageFilePath) => {
+                const lastSlash = storageFilePath.lastIndexOf('/');
+                return lastSlash >= 0
+                    ? storageFilePath.slice(lastSlash + 1)
+                    : storageFilePath;
+            })
+        );
+        const filteredFiles: FileModel[] = [];
+        const filenamesToRemove: string[] = [];
+        dbFiles.forEach((file) => {
+            if (storageFileNamesSet.has(file.filename))
+                filteredFiles.push(file);
+            else filenamesToRemove.push(file.filename);
+        });
+
+        await this.mongoDbService.removeFiles(filenamesToRemove);
+
+        const populatedFiles = this.populateFiles(
+            storageFilePaths,
+            filteredFiles
+        );
 
         const filePaths: string[] = [
             ...new Set(
